@@ -8,7 +8,7 @@
  *  - CDN (tailwind, chart.js) -> stale-while-revalidate (opaco, no bloquea).
  */
 
-const CACHE_STATIC = "lightweight-static-v7";
+const CACHE_STATIC = "lightweight-static-v9";
 const CACHE_API = "lightweight-api-v1";
 const CACHE_CDN = "lightweight-cdn-v1";
 

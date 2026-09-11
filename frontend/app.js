@@ -41,10 +41,10 @@ function openSheet({ title = "", html = "", actions = [{ label: "Entendido" }] }
     b.textContent = a.label;
     b.className =
       a.kind === "danger"
-        ? "flex-1 min-h-[44px] bg-red-600 font-bold rounded-xl px-3 py-2"
+        ? "flex-1 btn btn-danger"
         : a.kind === "primary"
-          ? "flex-1 min-h-[44px] bg-lime-400 text-black font-bold rounded-xl px-3 py-2"
-          : "flex-1 min-h-[44px] bg-zinc-800 font-semibold rounded-xl px-3 py-2";
+          ? "flex-1 btn btn-primary"
+          : "flex-1 btn btn-quiet";
     b.addEventListener("click", () => {
       const val = a.value;
       if (a.keepOpen !== true) closeSheet(val);
@@ -107,14 +107,10 @@ document.addEventListener("keydown", (e) => {
 function toast(msg, type = "info") {
   const box = $("toasts");
   if (!box) return;
-  const styles = {
-    success: "bg-lime-400/15 text-lime-300 border-lime-400/30",
-    error: "bg-red-500/15 text-red-300 border-red-500/30",
-    info: "bg-zinc-800/95 text-zinc-200 border-zinc-700",
-  };
+  const styles = { success: "toast-success", error: "toast-error", info: "toast-info" };
   const icons = { success: "✓", error: "⚠", info: "ℹ" };
   const el = document.createElement("div");
-  el.className = `toast pointer-events-auto max-w-md w-full sm:w-auto px-4 py-2.5 rounded-xl border text-sm font-medium shadow-2xl ${styles[type] || styles.info}`;
+  el.className = `toast pointer-events-auto max-w-md w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium shadow-2xl ${styles[type] || styles.info}`;
   el.textContent = `${icons[type] || icons.info} ${msg}`;
   el.addEventListener("click", dismiss);
   box.appendChild(el);
@@ -132,7 +128,7 @@ function toast(msg, type = "info") {
 // ---------- skeletons (solo primera carga; re-visitas reusan contenido) ----------
 let routLoaded = false, histLoaded = false;
 function skeletonCards(n = 3) {
-  return Array.from({ length: n }, () => `<div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-2/3 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-full bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-1/2 bg-zinc-800 rounded animate-pulse"></div></div>`).join("");
+  return Array.from({ length: n }, () => `<div class="card-soft space-y-2"><div class="h-4 w-2/3 sk rounded animate-pulse"></div><div class="h-3 w-full sk rounded animate-pulse"></div><div class="h-3 w-1/2 sk rounded animate-pulse"></div></div>`).join("");
 }
 
 // ---------- tabs (bottom nav app-nativa) ----------
@@ -245,12 +241,9 @@ async function refreshCurrentTab() {
 (async function init() {
   try {
     await refreshAll();
-    $("status").textContent = "● API conectada";
-    $("status").className = "text-xs px-3 py-1 rounded-full bg-lime-400/15 text-lime-300";
   } catch (e) {
-    $("status").textContent = "○ sin conexión — arranca uvicorn";
-    $("status").className = "text-xs px-3 py-1 rounded-full bg-red-500/15 text-red-300";
     console.error(e);
+    toast("Sin conexión — arranca uvicorn", "error");
   }
 })();
 
@@ -265,8 +258,8 @@ async function refreshAll() {
 // ---------- ejercicios ----------
 function renderExercises() {
   $("exerciseList").innerHTML = exercises
-    .map((e) => `<span class="text-xs bg-zinc-800 rounded-full px-3 py-1">${e.name} <span class="text-zinc-500">· ${e.muscle_group || "—"}</span></span>`)
-    .join("") || `<p class="text-sm text-zinc-500">Sin ejercicios.</p>`;
+    .map((e) => `<span class="chip">${e.name} <span class="faint">· ${e.muscle_group || "—"}</span></span>`)
+    .join("") || `<p class="text-sm faint">Sin ejercicios.</p>`;
   $("addExSelect").innerHTML = exercises.map((e) => `<option value="${e.id}">${e.name}</option>`).join("");
 }
 
@@ -292,7 +285,7 @@ async function loadRoutines() {
     renderRoutineSelects();
     routLoaded = true;
   } catch (e) {
-    if (!routLoaded) $("routineList").innerHTML = `<p class="text-sm text-zinc-500">Sin conexión.</p>`;
+    if (!routLoaded) $("routineList").innerHTML = `<p class="text-sm faint">Sin conexión.</p>`;
     throw e;
   }
 }
@@ -304,26 +297,26 @@ function renderRoutineSelects() {
 
 function renderRoutineList() {
   $("routineList").innerHTML = routines.map((r) => `
-    <div class="bg-zinc-900 rounded-2xl p-4">
+    <div class="card">
       <div class="flex items-center justify-between">
-        <div><h3 class="font-bold">${r.name}</h3><p class="text-xs text-zinc-400">${r.description || ""}</p></div>
+        <div><h3 class="font-bold">${r.name}</h3><p class="text-xs muted">${r.description || ""}</p></div>
         <div class="flex gap-2">
-          <button onclick="startSessionFromRoutine(${r.id})" class="text-xs bg-lime-400 text-black font-bold rounded-lg px-3 py-1">▶ Entrenar</button>
-          <button onclick="deleteRoutine(${r.id})" class="text-xs bg-zinc-800 rounded-lg px-3 py-1">✕</button>
+          <button onclick="startSessionFromRoutine(${r.id})" class="btn btn-primary btn-sm">▶ Entrenar</button>
+          <button onclick="deleteRoutine(${r.id})" class="btn btn-quiet btn-sm">✕</button>
         </div>
       </div>
       <table class="w-full text-sm mt-3">
-        <thead><tr class="text-zinc-500 text-xs text-left"><th>Ejercicio</th><th>Series</th><th>Reps</th><th>Kg</th><th></th></tr></thead>
-        <tbody>${r.exercises.map((e) => `<tr class="border-t border-zinc-800"><td class="py-1">${e.exercise_name}</td><td>${e.target_sets}</td><td>${e.target_reps}</td><td>${e.target_weight}</td><td class="text-right"><button onclick="removeRoutineEx(${r.id},${e.id})" class="text-zinc-500">✕</button></td></tr>`).join("") || `<tr><td colspan="5" class="text-zinc-500 text-xs py-2">Sin ejercicios. Añade abajo.</td></tr>`}</tbody>
+        <thead><tr class="faint text-xs text-left"><th>Ejercicio</th><th>Series</th><th>Reps</th><th>Kg</th><th></th></tr></thead>
+        <tbody>${r.exercises.map((e) => `<tr class="border-t border-zinc-800"><td class="py-1">${e.exercise_name}</td><td>${e.target_sets}</td><td>${e.target_reps}</td><td>${e.target_weight}</td><td class="text-right"><button onclick="removeRoutineEx(${r.id},${e.id})" class="icon-btn">✕</button></td></tr>`).join("") || `<tr><td colspan="5" class="faint text-xs py-2">Sin ejercicios. Añade abajo.</td></tr>`}</tbody>
       </table>
       <div class="flex gap-2 mt-3">
-        <select id="rex-${r.id}" class="flex-1 bg-zinc-800 rounded-lg px-2 py-1 text-sm">${exercises.map((e) => `<option value="${e.id}">${e.name}</option>`).join("")}</select>
-        <input id="rs-${r.id}" type="number" value="3" min="1" class="w-14 bg-zinc-800 rounded-lg px-2 py-1 text-sm" title="series" />
-        <input id="rr-${r.id}" type="number" value="10" min="1" class="w-14 bg-zinc-800 rounded-lg px-2 py-1 text-sm" title="reps" />
-        <input id="rw-${r.id}" type="number" value="0" step="0.5" class="w-16 bg-zinc-800 rounded-lg px-2 py-1 text-sm" title="kg" />
-        <button onclick="addRoutineEx(${r.id})" class="bg-zinc-700 rounded-lg px-3 text-sm font-bold">＋</button>
+        <select id="rex-${r.id}" class="flex-1 input input-sm text-sm">${exercises.map((e) => `<option value="${e.id}">${e.name}</option>`).join("")}</select>
+        <input id="rs-${r.id}" type="number" value="3" min="1" class="w-14 input input-sm text-sm" title="series" />
+        <input id="rr-${r.id}" type="number" value="10" min="1" class="w-14 input input-sm text-sm" title="reps" />
+        <input id="rw-${r.id}" type="number" value="0" step="0.5" class="w-16 input input-sm text-sm" title="kg" />
+        <button onclick="addRoutineEx(${r.id})" class="btn btn-ghost btn-sm">＋</button>
       </div>
-    </div>`).join("") || `<p class="text-zinc-500 text-sm">Crea tu primera rutina arriba.</p>`;
+    </div>`).join("") || `<p class="faint text-sm">Crea tu primera rutina arriba.</p>`;
 }
 
 async function createRoutine() {
@@ -401,22 +394,22 @@ async function openSession(id) {
   $("activeMeta").textContent = `${new Date(s.date).toLocaleString()} · ${s.routine_name || "libre"} · vol: ${s.total_volume} kg`;
   $("activeNotes").value = s.notes || "";
   $("activeExercises").innerHTML = s.exercises.map((se) => `
-    <div class="bg-zinc-800/60 rounded-xl p-3">
+    <div class="card-soft">
       <div class="flex items-center justify-between gap-2">
         <strong class="text-sm">${se.exercise_name}</strong>
-        <button onclick="removeSessionEx(${se.id})" class="text-xs text-zinc-400">quitar ✕</button>
+        <button onclick="removeSessionEx(${se.id})" class="btn btn-quiet btn-sm">quitar ✕</button>
       </div>
-      <input value="${(se.notes || "").replace(/"/g, "&quot;")}" onblur="saveExNotes(${se.id}, this.value)" placeholder="Nota del ejercicio…" class="w-full mt-1 bg-zinc-800 rounded-lg px-2 py-1 text-xs" />
+      <input value="${(se.notes || "").replace(/"/g, "&quot;")}" onblur="saveExNotes(${se.id}, this.value)" placeholder="Nota del ejercicio…" class="w-full mt-1 input input-sm text-xs" />
       <table class="w-full text-sm mt-2">
-        <thead><tr class="text-zinc-500 text-xs text-left"><th>#</th><th>Kg</th><th>Reps</th><th>Vol</th><th></th></tr></thead>
-        <tbody id="sets-${se.id}">${se.sets.map((t) => `<tr class="border-t border-zinc-700/50"><td>${t.set_number}</td><td>${t.weight}</td><td>${t.reps}</td><td class="text-zinc-400">${t.volume}</td><td class="text-right"><button onclick="deleteSet(${t.id}, this)" class="text-zinc-500 min-w-[44px] min-h-[44px]">✕</button></td></tr>`).join("")}</tbody>
+        <thead><tr class="faint text-xs text-left"><th>#</th><th>Kg</th><th>Reps</th><th>Vol</th><th></th></tr></thead>
+        <tbody id="sets-${se.id}">${se.sets.map((t) => `<tr class="border-t border-zinc-700/50"><td>${t.set_number}</td><td>${t.weight}</td><td>${t.reps}</td><td class="muted">${t.volume}</td><td class="text-right"><button onclick="deleteSet(${t.id}, this)" class="icon-btn">✕</button></td></tr>`).join("")}</tbody>
       </table>
       <div class="flex gap-2 mt-2">
-        <input id="w-${se.id}" type="number" step="0.5" min="0" placeholder="kg" class="w-20 bg-zinc-800 rounded-lg px-2 py-1 text-sm" />
-        <input id="r-${se.id}" type="number" min="0" placeholder="reps" class="w-20 bg-zinc-800 rounded-lg px-2 py-1 text-sm" />
-        <button onclick="addSet(${se.id})" class="flex-1 bg-lime-400 text-black text-sm font-bold rounded-lg">＋ Serie</button>
+        <input id="w-${se.id}" type="number" step="0.5" min="0" placeholder="kg" class="w-20 input input-sm text-sm" />
+        <input id="r-${se.id}" type="number" min="0" placeholder="reps" class="w-20 input input-sm text-sm" />
+        <button onclick="addSet(${se.id})" class="flex-1 btn btn-primary btn-sm">＋ Serie</button>
       </div>
-    </div>`).join("") || `<p class="text-sm text-zinc-500">Sesión vacía. Añade ejercicios abajo.</p>`;
+    </div>`).join("") || `<p class="text-sm faint">Sesión vacía. Añade ejercicios abajo.</p>`;
   $("activeSession").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -479,7 +472,7 @@ async function addSet(linkId) {
     const volume = Math.round(weight * reps * 100) / 100;
     pendingRow = document.createElement("tr");
     pendingRow.className = "border-t border-zinc-700/50 opacity-60 animate-pulse";
-    pendingRow.innerHTML = `<td>${tbody.rows.length + 1}</td><td>${weight}</td><td>${reps}</td><td class="text-zinc-400">${volume}</td><td class="text-right text-zinc-600">…</td>`;
+    pendingRow.innerHTML = `<td>${tbody.rows.length + 1}</td><td>${weight}</td><td>${reps}</td><td class="muted">${volume}</td><td class="text-right text-zinc-600">…</td>`;
     tbody.appendChild(pendingRow);
     wInput.value = "";
     rInput.value = "";
@@ -545,23 +538,23 @@ async function loadHistory() {
   try {
     sessions = await api("/api/sessions?limit=20");
   } catch (e) {
-    if (!histLoaded) $("historyList").innerHTML = `<p class="text-sm text-zinc-500">Sin conexión.</p>`;
+    if (!histLoaded) $("historyList").innerHTML = `<p class="text-sm faint">Sin conexión.</p>`;
     throw e;
   }
   histLoaded = true;
   $("historyList").innerHTML = sessions.map((s) => `
-    <div class="bg-zinc-800/60 rounded-xl p-3">
+    <div class="card-soft">
       <div class="flex items-center justify-between">
-        <div><strong class="text-sm">${s.name}</strong><p class="text-xs text-zinc-400">${new Date(s.date).toLocaleString()} · ${s.routine_name || "libre"} · vol total: <b class="text-lime-300">${s.total_volume} kg</b></p></div>
-        <button onclick="deleteSession(${s.id})" class="text-xs text-zinc-500">✕</button>
+        <div><strong class="text-sm">${s.name}</strong><p class="text-xs muted">${new Date(s.date).toLocaleString()} · ${s.routine_name || "libre"} · vol total: <b class="accent">${s.total_volume} kg</b></p></div>
+        <button onclick="deleteSession(${s.id})" class="icon-btn">✕</button>
       </div>
       ${s.notes ? `<p class="text-xs text-zinc-300 mt-1 italic">📝 ${s.notes}</p>` : ""}
       <div class="mt-2 space-y-1">${s.exercises.map((se) => `
         <div class="text-xs"><span class="font-semibold">${se.exercise_name}</span>
-        <span class="text-zinc-400">${se.sets.map((t) => `${t.weight}×${t.reps}`).join(" · ")}</span>
-        ${se.notes ? `<span class="text-zinc-500 italic"> (${se.notes})</span>` : ""}</div>`).join("")}
+        <span class="muted">${se.sets.map((t) => `${t.weight}×${t.reps}`).join(" · ")}</span>
+        ${se.notes ? `<span class="faint italic"> (${se.notes})</span>` : ""}</div>`).join("")}
       </div>
-    </div>`).join("") || `<p class="text-sm text-zinc-500">Sin sesiones todavía.</p>`;
+    </div>`).join("") || `<p class="text-sm faint">Sin sesiones todavía.</p>`;
 }
 
 async function deleteSession(id) {
