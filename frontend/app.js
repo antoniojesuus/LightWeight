@@ -18,7 +18,7 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-// ---------- haptics (Fase 4: navigator.vibrate, no-op si no soportado) ----------
+// ---------- haptics (navigator.vibrate, no-op si no soportado) ----------
 const haptic = {
   light() { try { navigator.vibrate?.(10); } catch (e) { /* sin hápticos */ } },
   medium() { try { navigator.vibrate?.(20); } catch (e) { /* sin hápticos */ } },
@@ -26,7 +26,7 @@ const haptic = {
   error() { try { navigator.vibrate?.([40, 40, 40]); } catch (e) { /* sin hápticos */ } },
 };
 
-// ---------- bottom sheet (Fase 3: sustituye alert/confirm) ----------
+// ---------- bottom sheet (sustituye alert/confirm) ----------
 let _sheetResolve = null;
 
 function openSheet({ title = "", html = "", actions = [{ label: "Entendido" }] }) {
@@ -103,6 +103,38 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("sheet").classList.contains("hidden")) closeSheet(false);
 });
 
+// ---------- toasts (feedback no bloqueante, auto-dismiss 3s) ----------
+function toast(msg, type = "info") {
+  const box = $("toasts");
+  if (!box) return;
+  const styles = {
+    success: "bg-lime-400/15 text-lime-300 border-lime-400/30",
+    error: "bg-red-500/15 text-red-300 border-red-500/30",
+    info: "bg-zinc-800/95 text-zinc-200 border-zinc-700",
+  };
+  const icons = { success: "✓", error: "⚠", info: "ℹ" };
+  const el = document.createElement("div");
+  el.className = `toast pointer-events-auto max-w-md w-full sm:w-auto px-4 py-2.5 rounded-xl border text-sm font-medium shadow-2xl ${styles[type] || styles.info}`;
+  el.textContent = `${icons[type] || icons.info} ${msg}`;
+  el.addEventListener("click", dismiss);
+  box.appendChild(el);
+  while (box.children.length > 3) box.firstChild.remove();
+  // doble rAF para que la transición de entrada funcione
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("toast-in")));
+  const timer = setTimeout(dismiss, 3000);
+  function dismiss() {
+    clearTimeout(timer);
+    el.classList.remove("toast-in");
+    setTimeout(() => el.remove(), 200);
+  }
+}
+
+// ---------- skeletons (solo primera carga; re-visitas reusan contenido) ----------
+let routLoaded = false, histLoaded = false;
+function skeletonCards(n = 3) {
+  return Array.from({ length: n }, () => `<div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-2/3 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-full bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-1/2 bg-zinc-800 rounded animate-pulse"></div></div>`).join("");
+}
+
 // ---------- tabs (bottom nav app-nativa) ----------
 function setActiveTab(btn) {
   document.querySelectorAll(".tab-btn").forEach((x) =>
@@ -111,9 +143,10 @@ function setActiveTab(btn) {
   ["entrenar", "rutinas", "historial", "progreso"].forEach((t) =>
     $("tab-" + t).classList.toggle("hidden", t !== btn.dataset.tab)
   );
-  if (btn.dataset.tab === "historial") loadHistory();
-  if (btn.dataset.tab === "progreso") loadProgress();
-  if (btn.dataset.tab === "rutinas") loadRoutines();
+  const tabErr = () => toast("Sin conexión", "error");
+  if (btn.dataset.tab === "historial") loadHistory().catch(tabErr);
+  if (btn.dataset.tab === "progreso") loadProgress().catch(tabErr);
+  if (btn.dataset.tab === "rutinas") loadRoutines().catch(tabErr);
 }
 document.querySelectorAll(".tab-btn").forEach((b) =>
   b.addEventListener("click", () => {
@@ -122,7 +155,7 @@ document.querySelectorAll(".tab-btn").forEach((b) =>
   })
 );
 
-// ---------- pull-to-refresh (Fase 4: arrastra desde arriba con scroll a 0) ----------
+// ---------- pull-to-refresh (arrastra desde arriba con scroll a 0) ----------
 function currentTab() {
   const b = document.querySelector('.tab-btn[aria-selected="true"]');
   return b ? b.dataset.tab : "entrenar";
@@ -253,8 +286,15 @@ async function createExercise() {
 
 // ---------- rutinas ----------
 async function loadRoutines() {
-  routines = await api("/api/routines");
-  renderRoutineSelects();
+  if (!routLoaded) $("routineList").innerHTML = skeletonCards(2);
+  try {
+    routines = await api("/api/routines");
+    renderRoutineSelects();
+    routLoaded = true;
+  } catch (e) {
+    if (!routLoaded) $("routineList").innerHTML = `<p class="text-sm text-zinc-500">Sin conexión.</p>`;
+    throw e;
+  }
 }
 
 function renderRoutineSelects() {
@@ -369,7 +409,7 @@ async function openSession(id) {
       <input value="${(se.notes || "").replace(/"/g, "&quot;")}" onblur="saveExNotes(${se.id}, this.value)" placeholder="Nota del ejercicio…" class="w-full mt-1 bg-zinc-800 rounded-lg px-2 py-1 text-xs" />
       <table class="w-full text-sm mt-2">
         <thead><tr class="text-zinc-500 text-xs text-left"><th>#</th><th>Kg</th><th>Reps</th><th>Vol</th><th></th></tr></thead>
-        <tbody>${se.sets.map((t) => `<tr class="border-t border-zinc-700/50"><td>${t.set_number}</td><td>${t.weight}</td><td>${t.reps}</td><td class="text-zinc-400">${t.volume}</td><td class="text-right"><button onclick="deleteSet(${t.id})" class="text-zinc-500">✕</button></td></tr>`).join("")}</tbody>
+        <tbody id="sets-${se.id}">${se.sets.map((t) => `<tr class="border-t border-zinc-700/50"><td>${t.set_number}</td><td>${t.weight}</td><td>${t.reps}</td><td class="text-zinc-400">${t.volume}</td><td class="text-right"><button onclick="deleteSet(${t.id}, this)" class="text-zinc-500 min-w-[44px] min-h-[44px]">✕</button></td></tr>`).join("")}</tbody>
       </table>
       <div class="flex gap-2 mt-2">
         <input id="w-${se.id}" type="number" step="0.5" min="0" placeholder="kg" class="w-20 bg-zinc-800 rounded-lg px-2 py-1 text-sm" />
@@ -400,7 +440,13 @@ async function saveSessionNotes(btn) {
 }
 
 async function saveExNotes(linkId, notes) {
-  await api(`/api/session-exercises/${linkId}`, { method: "PATCH", body: JSON.stringify({ notes }) });
+  try {
+    await api(`/api/session-exercises/${linkId}`, { method: "PATCH", body: JSON.stringify({ notes }) });
+  } catch (e) {
+    console.warn("[saveExNotes] falló:", e);
+    haptic.error();
+    toast("Sin conexión — nota no guardada", "error");
+  }
 }
 
 async function addExerciseToSession() {
@@ -421,22 +467,88 @@ async function removeSessionEx(linkId) {
 }
 
 async function addSet(linkId) {
-  const weight = Number($(`w-${linkId}`).value || 0);
-  const reps = Number($(`r-${linkId}`).value || 0);
-  await api(`/api/session-exercises/${linkId}/sets`, { method: "POST", body: JSON.stringify({ weight, reps }) });
-  openSession(activeSessionId);
-  haptic.success();
+  const wInput = $(`w-${linkId}`);
+  const rInput = $(`r-${linkId}`);
+  const weight = Number(wInput.value || 0);
+  const reps = Number(rInput.value || 0);
+  const tbody = $(`sets-${linkId}`);
+
+  // 1. Fila optimista instantánea (estado pendiente)
+  let pendingRow = null;
+  if (tbody) {
+    const volume = Math.round(weight * reps * 100) / 100;
+    pendingRow = document.createElement("tr");
+    pendingRow.className = "border-t border-zinc-700/50 opacity-60 animate-pulse";
+    pendingRow.innerHTML = `<td>${tbody.rows.length + 1}</td><td>${weight}</td><td>${reps}</td><td class="text-zinc-400">${volume}</td><td class="text-right text-zinc-600">…</td>`;
+    tbody.appendChild(pendingRow);
+    wInput.value = "";
+    rInput.value = "";
+    wInput.focus();
+  }
+  haptic.light(); // feedback inmediato al pulsar
+
+  // 2. POST en background + reconciliación con el servidor
+  try {
+    await api(`/api/session-exercises/${linkId}/sets`, { method: "POST", body: JSON.stringify({ weight, reps }) });
+    haptic.success();
+    await openSession(activeSessionId);
+  } catch (e) {
+    console.warn("[addSet] falló, rollback:", e);
+    haptic.error();
+    toast("Sin conexión — serie no guardada", "error");
+    try {
+      await openSession(activeSessionId); // re-sincroniza con el servidor
+    } catch {
+      pendingRow?.remove(); // ni siquiera hay red para re-sincronizar: quita la fila optimista
+    }
+  }
 }
 
-async function deleteSet(setId) {
-  await api(`/api/sets/${setId}`, { method: "DELETE" });
-  openSession(activeSessionId);
+async function deleteSet(setId, btn) {
+  const row = btn instanceof HTMLElement ? btn.closest("tr") : null;
+  const tbody = row ? row.parentElement : null;
+  const index = tbody && row ? [...tbody.rows].indexOf(row) : -1;
+  const rowHtml = row ? row.outerHTML : null;
+
+  // 1. Quita la fila al instante
+  row?.remove();
   haptic.medium();
+
+  // 2. DELETE en background + reconciliación (renumera series)
+  try {
+    await api(`/api/sets/${setId}`, { method: "DELETE" });
+    await openSession(activeSessionId);
+  } catch (e) {
+    console.warn("[deleteSet] falló, rollback:", e);
+    haptic.error();
+    toast("Sin conexión — no se pudo borrar", "error");
+    try {
+      await openSession(activeSessionId);
+    } catch {
+      // restaura la fila en su posición original
+      if (tbody && rowHtml && index >= 0) {
+        const tmp = document.createElement("tbody");
+        tmp.innerHTML = rowHtml;
+        const restored = tmp.firstElementChild;
+        if (restored) {
+          if (index >= tbody.rows.length) tbody.appendChild(restored);
+          else tbody.insertBefore(restored, tbody.rows[index]);
+        }
+      }
+    }
+  }
 }
 
 // ---------- historial ----------
 async function loadHistory() {
-  sessions = await api("/api/sessions?limit=20");
+  if (!histLoaded) $("historyList").innerHTML = skeletonCards(3);
+  try {
+    sessions = await api("/api/sessions?limit=20");
+  } catch (e) {
+    if (!histLoaded) $("historyList").innerHTML = `<p class="text-sm text-zinc-500">Sin conexión.</p>`;
+    throw e;
+  }
+  histLoaded = true;
   $("historyList").innerHTML = sessions.map((s) => `
     <div class="bg-zinc-800/60 rounded-xl p-3">
       <div class="flex items-center justify-between">

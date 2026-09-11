@@ -1,14 +1,14 @@
-/* LightWeight Service Worker — Fase 1 PWA base.
+/* LightWeight Service Worker.
  *
  * Estrategia:
  *  - App shell (/, /static/*, /icons/*, /manifest) -> cache-first, fallback a red.
  *  - GET /api/* -> network-first, fallback a caché (solo lectura offline).
- *  - POST/PATCH/DELETE /api/* -> solo red (sin offline-write todavía; Fase 5 pondrá cola).
+ *  - POST/PATCH/DELETE /api/* -> solo red (sin escritura offline).
  *  - Navegaciones -> network-first, fallback a "/" cacheado (shell offline).
  *  - CDN (tailwind, chart.js) -> stale-while-revalidate (opaco, no bloquea).
  */
 
-const CACHE_STATIC = "lightweight-static-v4";
+const CACHE_STATIC = "lightweight-static-v7";
 const CACHE_API = "lightweight-api-v1";
 const CACHE_CDN = "lightweight-cdn-v1";
 

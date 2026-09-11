@@ -55,15 +55,25 @@
   }
   #ptrPill.ptr-show { opacity: 1; transform: translateY(0); }
   #ptrPill.ptr-ready { background-color: rgba(163, 230, 53, .15); color: #bef264; }
+  /* ---- Toasts ---- */
+  #toasts { bottom: calc(6rem + env(safe-area-inset-bottom)); }
+  .toast {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .18s ease-out, transform .18s ease-out;
+  }
+  .toast.toast-in { opacity: 1; transform: translateY(0); }
   @media (prefers-reduced-motion: reduce) {
     .nav-btn, .nav-btn .nav-pill { transition: none !important; }
     #sheetPanel, #sheetBackdrop { transition: none !important; }
     #ptrPill { transition: none !important; }
+    .toast { transition: none !important; }
+    .animate-pulse { animation: none !important; }
   }
 </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
-<!-- Indicador pull-to-refresh (Fase 4) -->
+<!-- Indicador pull-to-refresh -->
 <div id="ptr" class="fixed top-0 inset-x-0 z-[70] flex justify-center pointer-events-none" aria-hidden="true" style="padding-top: env(safe-area-inset-top)">
   <div id="ptrPill" class="mt-2 px-3 py-1.5 rounded-full bg-zinc-800/95 text-xs font-semibold text-zinc-300">↓ Arrastra para actualizar</div>
 </div>
@@ -162,7 +172,12 @@
         <input id="newExMuscle" placeholder="Músculo" class="w-32 bg-zinc-800 rounded-xl px-3 py-2 text-sm" />
         <button onclick="createExercise()" class="bg-lime-400 text-black font-bold rounded-xl px-4 text-sm">＋</button>
       </div>
-      <div id="exerciseList" class="flex flex-wrap gap-2"></div>
+      <div id="exerciseList" class="flex flex-wrap gap-2">
+        <span class="inline-block h-6 w-24 bg-zinc-800 rounded-full animate-pulse"></span>
+        <span class="inline-block h-6 w-20 bg-zinc-800 rounded-full animate-pulse"></span>
+        <span class="inline-block h-6 w-28 bg-zinc-800 rounded-full animate-pulse"></span>
+        <span class="inline-block h-6 w-16 bg-zinc-800 rounded-full animate-pulse"></span>
+      </div>
     </div>
   </section>
 
@@ -176,7 +191,10 @@
       </div>
       <input id="newRoutineDesc" placeholder="Descripción (opcional)" class="w-full mt-2 bg-zinc-800 rounded-xl px-3 py-2 text-sm" />
     </div>
-    <div id="routineList" class="space-y-4"></div>
+    <div id="routineList" class="space-y-4">
+      <div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-2/3 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-full bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-1/2 bg-zinc-800 rounded animate-pulse"></div></div>
+      <div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-1/2 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-full bg-zinc-800 rounded animate-pulse"></div></div>
+    </div>
   </section>
 
   <!-- ============ HISTORIAL ============ -->
@@ -186,7 +204,11 @@
         <h2 class="font-bold text-lg">Últimas sesiones</h2>
         <button onclick="loadHistory()" class="text-xs bg-zinc-700 rounded-lg px-3 py-1">↻ Recargar</button>
       </div>
-      <div id="historyList" class="space-y-4"></div>
+      <div id="historyList" class="space-y-4">
+        <div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-2/3 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-full bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-1/2 bg-zinc-800 rounded animate-pulse"></div></div>
+        <div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-1/2 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-full bg-zinc-800 rounded animate-pulse"></div></div>
+        <div class="bg-zinc-800/60 rounded-xl p-3 space-y-2"><div class="h-4 w-2/3 bg-zinc-800 rounded animate-pulse"></div><div class="h-3 w-3/4 bg-zinc-800 rounded animate-pulse"></div></div>
+      </div>
     </div>
   </section>
 
@@ -209,7 +231,10 @@
 
 </div>
 
-<!-- ============ BOTTOM SHEET (Fase 3: sustituye alert/confirm) ============ -->
+<!-- Contenedor de toasts: encima de la nav, debajo del sheet -->
+<div id="toasts" class="fixed inset-x-0 z-[55] flex flex-col items-center gap-2 px-4 pointer-events-none" aria-live="polite"></div>
+
+<!-- ============ BOTTOM SHEET (sustituye alert/confirm) ============ -->
 <div id="sheet" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div id="sheetBackdrop" class="absolute inset-0 bg-black/60"></div>
   <div id="sheetPanel"
@@ -226,7 +251,7 @@
 
 <script src="/static/app.js"></script>
 <script>
-  // Fase 1 PWA: registra el Service Worker (scope /). No rompe si falla.
+  // Registra el Service Worker (scope /). No rompe si falla.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
