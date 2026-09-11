@@ -18,22 +18,20 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-// ---------- tabs ----------
+// ---------- tabs (bottom nav app-nativa) ----------
+function setActiveTab(btn) {
+  document.querySelectorAll(".tab-btn").forEach((x) =>
+    x.setAttribute("aria-selected", x === btn ? "true" : "false")
+  );
+  ["entrenar", "rutinas", "historial", "progreso"].forEach((t) =>
+    $("tab-" + t).classList.toggle("hidden", t !== btn.dataset.tab)
+  );
+  if (btn.dataset.tab === "historial") loadHistory();
+  if (btn.dataset.tab === "progreso") loadProgress();
+  if (btn.dataset.tab === "rutinas") loadRoutines();
+}
 document.querySelectorAll(".tab-btn").forEach((b) =>
-  b.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach((x) => {
-      x.classList.remove("bg-lime-400", "text-black");
-      x.classList.add("bg-zinc-800");
-    });
-    b.classList.add("bg-lime-400", "text-black");
-    b.classList.remove("bg-zinc-800");
-    ["entrenar", "rutinas", "historial", "progreso"].forEach((t) =>
-      $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)
-    );
-    if (b.dataset.tab === "historial") loadHistory();
-    if (b.dataset.tab === "progreso") loadProgress();
-    if (b.dataset.tab === "rutinas") loadRoutines();
-  })
+  b.addEventListener("click", () => setActiveTab(b))
 );
 
 // ---------- init ----------
@@ -74,6 +72,11 @@ async function createExercise() {
 }
 
 // ---------- rutinas ----------
+async function loadRoutines() {
+  routines = await api("/api/routines");
+  renderRoutineSelects();
+}
+
 function renderRoutineSelects() {
   $("routineSelect").innerHTML = routines.map((r) => `<option value="${r.id}">${r.name} (${r.exercises.length} ej.)</option>`).join("") || `<option value="">Sin rutinas</option>`;
   renderRoutineList();

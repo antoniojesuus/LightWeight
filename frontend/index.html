@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>LightWeight — Seguimiento de entrenos</title>
 <meta name="description" content="App local de seguimiento de entrenamientos en el gimnasio." />
 <meta name="theme-color" content="#09090b" />
@@ -16,9 +16,35 @@
 <meta name="apple-mobile-web-app-title" content="LightWeight" />
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  html { -webkit-tap-highlight-color: transparent; }
+  body {
+    padding-top: env(safe-area-inset-top);
+    /* deja hueco para la bottom nav fija + safe-area */
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    overscroll-behavior-y: none;
+  }
+  /* ---- Bottom nav app-nativa ---- */
+  #mainnav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-btn {
+    color: #a1a1aa; /* zinc-400 */
+    transition: color .15s ease-out, background-color .15s ease-out, transform .1s ease-out;
+  }
+  .nav-btn:active { transform: scale(.96); }
+  .nav-btn .nav-pill { opacity: 0; transform: scale(.6); transition: opacity .15s ease-out, transform .15s ease-out; }
+  .nav-btn[aria-selected="true"] { color: #a3e635; /* lime-400 */ }
+  .nav-btn[aria-selected="true"] .nav-pill { opacity: 1; transform: scale(1); }
+  .nav-btn:focus-visible { outline: 2px solid #a3e635; outline-offset: 2px; border-radius: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-btn, .nav-btn .nav-pill { transition: none !important; }
+  }
+</style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
-<div class="max-w-5xl mx-auto px-4 pb-24">
+<div class="max-w-5xl mx-auto px-4">
 
   <header class="py-6 flex items-center justify-between">
     <div>
@@ -28,11 +54,49 @@
     <span id="status" class="text-xs px-3 py-1 rounded-full bg-zinc-800 text-zinc-300">conectando…</span>
   </header>
 
-  <nav class="grid grid-cols-4 gap-2 mb-6">
-    <button data-tab="entrenar" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-lime-400 text-black">Entrenar</button>
-    <button data-tab="rutinas" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-zinc-800">Rutinas</button>
-    <button data-tab="historial" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-zinc-800">Historial</button>
-    <button data-tab="progreso" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-zinc-800">Progreso</button>
+  <nav id="mainnav" role="tablist" aria-label="Navegación principal"
+       class="fixed bottom-0 inset-x-0 z-50 bg-zinc-950/95 backdrop-blur border-t border-zinc-800
+              md:bottom-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[28rem] md:rounded-2xl md:border md:shadow-2xl">
+    <div class="flex justify-around items-stretch px-2 pt-2">
+      <button data-tab="entrenar" role="tab" aria-selected="true"
+              class="tab-btn nav-btn flex flex-col items-center gap-1 px-3 pt-2 pb-1 min-w-[64px] min-h-[56px] rounded-xl">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <span class="text-[11px] font-semibold leading-none">Entrenar</span>
+        <span class="nav-pill h-1 w-8 rounded-full bg-lime-400" aria-hidden="true"></span>
+      </button>
+      <button data-tab="rutinas" role="tab" aria-selected="false"
+              class="tab-btn nav-btn flex flex-col items-center gap-1 px-3 pt-2 pb-1 min-w-[64px] min-h-[56px] rounded-xl">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+          <path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          <path d="m9 14 2 2 4-4"/>
+        </svg>
+        <span class="text-[11px] font-semibold leading-none">Rutinas</span>
+        <span class="nav-pill h-1 w-8 rounded-full bg-lime-400" aria-hidden="true"></span>
+      </button>
+      <button data-tab="historial" role="tab" aria-selected="false"
+              class="tab-btn nav-btn flex flex-col items-center gap-1 px-3 pt-2 pb-1 min-w-[64px] min-h-[56px] rounded-xl">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="text-[11px] font-semibold leading-none">Historial</span>
+        <span class="nav-pill h-1 w-8 rounded-full bg-lime-400" aria-hidden="true"></span>
+      </button>
+      <button data-tab="progreso" role="tab" aria-selected="false"
+              class="tab-btn nav-btn flex flex-col items-center gap-1 px-3 pt-2 pb-1 min-w-[64px] min-h-[56px] rounded-xl">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span class="text-[11px] font-semibold leading-none">Progreso</span>
+        <span class="nav-pill h-1 w-8 rounded-full bg-lime-400" aria-hidden="true"></span>
+      </button>
+    </div>
   </nav>
 
   <!-- ============ ENTRENAR ============ -->
