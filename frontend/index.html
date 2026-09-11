@@ -47,13 +47,26 @@
   #sheetBackdrop { opacity: 0; transition: opacity .2s ease-out; }
   #sheet.open #sheetPanel { transform: translateY(0); }
   #sheet.open #sheetBackdrop { opacity: 1; }
+  /* ---- Pull to refresh ---- */
+  #ptrPill {
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity .15s ease-out, transform .15s ease-out;
+  }
+  #ptrPill.ptr-show { opacity: 1; transform: translateY(0); }
+  #ptrPill.ptr-ready { background-color: rgba(163, 230, 53, .15); color: #bef264; }
   @media (prefers-reduced-motion: reduce) {
     .nav-btn, .nav-btn .nav-pill { transition: none !important; }
     #sheetPanel, #sheetBackdrop { transition: none !important; }
+    #ptrPill { transition: none !important; }
   }
 </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
+<!-- Indicador pull-to-refresh (Fase 4) -->
+<div id="ptr" class="fixed top-0 inset-x-0 z-[70] flex justify-center pointer-events-none" aria-hidden="true" style="padding-top: env(safe-area-inset-top)">
+  <div id="ptrPill" class="mt-2 px-3 py-1.5 rounded-full bg-zinc-800/95 text-xs font-semibold text-zinc-300">↓ Arrastra para actualizar</div>
+</div>
 <div class="max-w-5xl mx-auto px-4">
 
   <header class="py-6 flex items-center justify-between">

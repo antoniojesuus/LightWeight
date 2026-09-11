@@ -18,6 +18,14 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
+// ---------- haptics (Fase 4: navigator.vibrate, no-op si no soportado) ----------
+const haptic = {
+  light() { try { navigator.vibrate?.(10); } catch (e) { /* sin hápticos */ } },
+  medium() { try { navigator.vibrate?.(20); } catch (e) { /* sin hápticos */ } },
+  success() { try { navigator.vibrate?.([10, 40, 10]); } catch (e) { /* sin hápticos */ } },
+  error() { try { navigator.vibrate?.([40, 40, 40]); } catch (e) { /* sin hápticos */ } },
+};
+
 // ---------- bottom sheet (Fase 3: sustituye alert/confirm) ----------
 let _sheetResolve = null;
 
@@ -108,8 +116,97 @@ function setActiveTab(btn) {
   if (btn.dataset.tab === "rutinas") loadRoutines();
 }
 document.querySelectorAll(".tab-btn").forEach((b) =>
-  b.addEventListener("click", () => setActiveTab(b))
+  b.addEventListener("click", () => {
+    haptic.light();
+    setActiveTab(b);
+  })
 );
+
+// ---------- pull-to-refresh (Fase 4: arrastra desde arriba con scroll a 0) ----------
+function currentTab() {
+  const b = document.querySelector('.tab-btn[aria-selected="true"]');
+  return b ? b.dataset.tab : "entrenar";
+}
+
+async function refreshCurrentTab() {
+  const t = currentTab();
+  if (t === "historial") await loadHistory();
+  else if (t === "rutinas") await loadRoutines();
+  else if (t === "progreso") await loadProgress();
+  else await refreshAll(); // entrenar: catálogo + rutinas + progreso
+}
+
+(function initPullToRefresh() {
+  const THRESHOLD = 70;
+  let startY = null, pulling = false, ready = false, refreshing = false;
+
+  const pill = () => $("ptrPill");
+  const sheetOpen = () => !$("sheet").classList.contains("hidden");
+
+  function ptrShow(text, isReady) {
+    const p = pill();
+    if (!p) return;
+    p.textContent = text;
+    p.classList.add("ptr-show");
+    p.classList.toggle("ptr-ready", !!isReady);
+  }
+  function ptrHide() {
+    const p = pill();
+    if (!p) return;
+    p.classList.remove("ptr-show", "ptr-ready", "animate-pulse");
+  }
+
+  window.addEventListener("touchstart", (e) => {
+    if (refreshing || sheetOpen() || window.scrollY > 0) { startY = null; return; }
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  window.addEventListener("touchmove", (e) => {
+    if (startY === null || refreshing || sheetOpen()) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0 || window.scrollY > 0) {
+      if (pulling) { pulling = false; ready = false; ptrHide(); }
+      return;
+    }
+    if (dy > 10) {
+      pulling = true;
+      e.preventDefault(); // requiere passive:false; el body ya lleva overscroll-behavior:none
+      if (dy >= THRESHOLD && !ready) {
+        ready = true;
+        haptic.light();
+        ptrShow("↑ Suelta para actualizar", true);
+      } else if (dy < THRESHOLD && ready) {
+        ready = false;
+        ptrShow("↓ Arrastra para actualizar", false);
+      } else if (!ready && !$("ptrPill").classList.contains("ptr-show")) {
+        ptrShow("↓ Arrastra para actualizar", false);
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener("touchend", async () => {
+    if (!pulling) { startY = null; return; }
+    pulling = false;
+    startY = null;
+    if (!ready || refreshing) { ready = false; ptrHide(); return; }
+    ready = false;
+    refreshing = true;
+    ptrShow("↻ Actualizando…", true);
+    pill().classList.add("animate-pulse");
+    try {
+      await refreshCurrentTab();
+      haptic.success();
+      setTimeout(ptrHide, 350);
+    } catch (e) {
+      console.warn("[PTR] refresh falló:", e);
+      haptic.error();
+      ptrShow("○ Sin conexión", false);
+      setTimeout(ptrHide, 1500);
+    } finally {
+      refreshing = false;
+    }
+  });
+})();
 
 // ---------- init ----------
 (async function init() {
@@ -143,6 +240,7 @@ function renderExercises() {
 async function createExercise() {
   const name = $("newExName").value.trim();
   if (!name) {
+    haptic.light();
     messageSheet("Falta el nombre", "Ponle nombre al ejercicio (ej: Hip thrust).");
     $("newExName").focus();
     return;
@@ -150,6 +248,7 @@ async function createExercise() {
   await api("/api/exercises", { method: "POST", body: JSON.stringify({ name, muscle_group: $("newExMuscle").value.trim() }) });
   $("newExName").value = ""; $("newExMuscle").value = "";
   await refreshAll();
+  haptic.success();
 }
 
 // ---------- rutinas ----------
@@ -190,6 +289,7 @@ function renderRoutineList() {
 async function createRoutine() {
   const name = $("newRoutineName").value.trim();
   if (!name) {
+    haptic.light();
     messageSheet("Falta el nombre", "Ponle nombre a la rutina (ej: Push Day).");
     $("newRoutineName").focus();
     return;
@@ -198,6 +298,7 @@ async function createRoutine() {
   $("newRoutineName").value = ""; $("newRoutineDesc").value = "";
   routines = await api("/api/routines");
   renderRoutineSelects();
+  haptic.success();
 }
 
 async function deleteRoutine(id) {
@@ -209,6 +310,7 @@ async function deleteRoutine(id) {
   await api(`/api/routines/${id}`, { method: "DELETE" });
   routines = await api("/api/routines");
   renderRoutineSelects();
+  haptic.success();
 }
 
 async function addRoutineEx(routineId) {
@@ -233,6 +335,7 @@ async function startSession(useRoutine) {
   const body = { name: $("sessionName").value.trim(), notes: "" };
   if (useRoutine) {
     if (!routines.length) {
+      haptic.light();
       messageSheet("Sin rutinas", "Crea primero una rutina en la pestaña Rutinas.");
       return;
     }
@@ -240,12 +343,14 @@ async function startSession(useRoutine) {
   }
   const s = await api("/api/sessions", { method: "POST", body: JSON.stringify(body) });
   openSession(s.id);
+  haptic.success();
 }
 
 async function startSessionFromRoutine(id) {
   const s = await api("/api/sessions", { method: "POST", body: JSON.stringify({ routine_id: id }) });
   document.querySelector('[data-tab="entrenar"]').click();
   openSession(s.id);
+  haptic.success();
 }
 
 async function openSession(id) {
@@ -284,6 +389,7 @@ async function saveSessionNotes(btn) {
   try {
     await api(`/api/sessions/${activeSessionId}`, { method: "PATCH", body: JSON.stringify({ notes: $("activeNotes").value }) });
     // feedback inline no bloqueante (en lugar de alert)
+    haptic.success();
     if (el) {
       el.textContent = "✓ Guardada";
       setTimeout(() => { el.textContent = prev || "💾 Guardar nota"; }, 2000);
@@ -299,16 +405,19 @@ async function saveExNotes(linkId, notes) {
 
 async function addExerciseToSession() {
   if (!activeSessionId) {
+    haptic.light();
     messageSheet("Sin sesión activa", "Inicia una sesión primero para añadir ejercicios.");
     return;
   }
   await api(`/api/sessions/${activeSessionId}/exercises`, { method: "POST", body: JSON.stringify({ exercise_id: Number($("addExSelect").value) }) });
   openSession(activeSessionId);
+  haptic.success();
 }
 
 async function removeSessionEx(linkId) {
   await api(`/api/session-exercises/${linkId}`, { method: "DELETE" });
   openSession(activeSessionId);
+  haptic.medium();
 }
 
 async function addSet(linkId) {
@@ -316,11 +425,13 @@ async function addSet(linkId) {
   const reps = Number($(`r-${linkId}`).value || 0);
   await api(`/api/session-exercises/${linkId}/sets`, { method: "POST", body: JSON.stringify({ weight, reps }) });
   openSession(activeSessionId);
+  haptic.success();
 }
 
 async function deleteSet(setId) {
   await api(`/api/sets/${setId}`, { method: "DELETE" });
   openSession(activeSessionId);
+  haptic.medium();
 }
 
 // ---------- historial ----------
@@ -349,6 +460,7 @@ async function deleteSession(id) {
   if (!ok) return;
   await api(`/api/sessions/${id}`, { method: "DELETE" });
   loadHistory();
+  haptic.success();
 }
 
 // ---------- progreso ----------
