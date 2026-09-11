@@ -18,6 +18,83 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
+// ---------- bottom sheet (Fase 3: sustituye alert/confirm) ----------
+let _sheetResolve = null;
+
+function openSheet({ title = "", html = "", actions = [{ label: "Entendido" }] }) {
+  const sheet = $("sheet");
+  $("sheetTitle").textContent = title;
+  $("sheetBody").innerHTML = html;
+  const box = $("sheetActions");
+  box.innerHTML = "";
+  actions.forEach((a) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = a.label;
+    b.className =
+      a.kind === "danger"
+        ? "flex-1 min-h-[44px] bg-red-600 font-bold rounded-xl px-3 py-2"
+        : a.kind === "primary"
+          ? "flex-1 min-h-[44px] bg-lime-400 text-black font-bold rounded-xl px-3 py-2"
+          : "flex-1 min-h-[44px] bg-zinc-800 font-semibold rounded-xl px-3 py-2";
+    b.addEventListener("click", () => {
+      const val = a.value;
+      if (a.keepOpen !== true) closeSheet(val);
+      if (typeof a.onClick === "function") a.onClick(val);
+    });
+    box.appendChild(b);
+  });
+  sheet.classList.remove("hidden");
+  // fuerza reflow para que la transición funcione
+  void sheet.offsetWidth;
+  sheet.classList.add("open");
+  const first = box.querySelector("button");
+  if (first) first.focus();
+}
+
+function closeSheet(value) {
+  const sheet = $("sheet");
+  if (sheet.classList.contains("hidden")) return;
+  sheet.classList.remove("open");
+  // espera a la transición (o la omite con reduced-motion)
+  const done = () => {
+    sheet.classList.add("hidden");
+    if (_sheetResolve) {
+      const r = _sheetResolve;
+      _sheetResolve = null;
+      r(value);
+    }
+  };
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) done();
+  else setTimeout(done, 180);
+}
+
+/** Mensaje informativo (validaciones, avisos). */
+function messageSheet(title, message) {
+  openSheet({ title, html: `<p>${message}</p>`, actions: [{ label: "Entendido", kind: "primary" }] });
+}
+
+/** Confirmación que resuelve true/false. */
+function confirmSheet({ title = "Confirmar", message = "", confirmLabel = "Eliminar", danger = true } = {}) {
+  return new Promise((resolve) => {
+    _sheetResolve = (v) => resolve(v === true);
+    openSheet({
+      title,
+      html: `<p>${message}</p>`,
+      actions: [
+        { label: "Cancelar", value: false },
+        { label: confirmLabel, value: true, kind: danger ? "danger" : "primary" },
+      ],
+    });
+  });
+}
+
+$("sheetClose").addEventListener("click", () => closeSheet(false));
+$("sheetBackdrop").addEventListener("click", () => closeSheet(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("sheet").classList.contains("hidden")) closeSheet(false);
+});
+
 // ---------- tabs (bottom nav app-nativa) ----------
 function setActiveTab(btn) {
   document.querySelectorAll(".tab-btn").forEach((x) =>
@@ -65,7 +142,11 @@ function renderExercises() {
 
 async function createExercise() {
   const name = $("newExName").value.trim();
-  if (!name) return alert("Ponle nombre al ejercicio");
+  if (!name) {
+    messageSheet("Falta el nombre", "Ponle nombre al ejercicio (ej: Hip thrust).");
+    $("newExName").focus();
+    return;
+  }
   await api("/api/exercises", { method: "POST", body: JSON.stringify({ name, muscle_group: $("newExMuscle").value.trim() }) });
   $("newExName").value = ""; $("newExMuscle").value = "";
   await refreshAll();
@@ -108,7 +189,11 @@ function renderRoutineList() {
 
 async function createRoutine() {
   const name = $("newRoutineName").value.trim();
-  if (!name) return alert("Ponle nombre a la rutina");
+  if (!name) {
+    messageSheet("Falta el nombre", "Ponle nombre a la rutina (ej: Push Day).");
+    $("newRoutineName").focus();
+    return;
+  }
   await api("/api/routines", { method: "POST", body: JSON.stringify({ name, description: $("newRoutineDesc").value }) });
   $("newRoutineName").value = ""; $("newRoutineDesc").value = "";
   routines = await api("/api/routines");
@@ -116,7 +201,11 @@ async function createRoutine() {
 }
 
 async function deleteRoutine(id) {
-  if (!confirm("¿Eliminar rutina?")) return;
+  const ok = await confirmSheet({
+    title: "¿Eliminar rutina?",
+    message: "Se eliminará la rutina y sus ejercicios planificados. Esta acción no se puede deshacer.",
+  });
+  if (!ok) return;
   await api(`/api/routines/${id}`, { method: "DELETE" });
   routines = await api("/api/routines");
   renderRoutineSelects();
@@ -143,7 +232,10 @@ async function removeRoutineEx(routineId, linkId) {
 async function startSession(useRoutine) {
   const body = { name: $("sessionName").value.trim(), notes: "" };
   if (useRoutine) {
-    if (!routines.length) return alert("Crea primero una rutina");
+    if (!routines.length) {
+      messageSheet("Sin rutinas", "Crea primero una rutina en la pestaña Rutinas.");
+      return;
+    }
     body.routine_id = Number($("routineSelect").value);
   }
   const s = await api("/api/sessions", { method: "POST", body: JSON.stringify(body) });
@@ -185,10 +277,20 @@ async function openSession(id) {
 
 function closeSession() { activeSessionId = null; $("activeSession").classList.add("hidden"); loadHistory(); }
 
-async function saveSessionNotes() {
+async function saveSessionNotes(btn) {
   if (!activeSessionId) return;
-  await api(`/api/sessions/${activeSessionId}`, { method: "PATCH", body: JSON.stringify({ notes: $("activeNotes").value }) });
-  alert("Nota guardada");
+  const el = btn instanceof HTMLElement ? btn : null;
+  const prev = el ? el.textContent : "";
+  try {
+    await api(`/api/sessions/${activeSessionId}`, { method: "PATCH", body: JSON.stringify({ notes: $("activeNotes").value }) });
+    // feedback inline no bloqueante (en lugar de alert)
+    if (el) {
+      el.textContent = "✓ Guardada";
+      setTimeout(() => { el.textContent = prev || "💾 Guardar nota"; }, 2000);
+    }
+  } catch (e) {
+    messageSheet("No se pudo guardar", "Revisa la conexión e inténtalo de nuevo.");
+  }
 }
 
 async function saveExNotes(linkId, notes) {
@@ -196,7 +298,10 @@ async function saveExNotes(linkId, notes) {
 }
 
 async function addExerciseToSession() {
-  if (!activeSessionId) return alert("Inicia una sesión primero");
+  if (!activeSessionId) {
+    messageSheet("Sin sesión activa", "Inicia una sesión primero para añadir ejercicios.");
+    return;
+  }
   await api(`/api/sessions/${activeSessionId}/exercises`, { method: "POST", body: JSON.stringify({ exercise_id: Number($("addExSelect").value) }) });
   openSession(activeSessionId);
 }
@@ -237,7 +342,11 @@ async function loadHistory() {
 }
 
 async function deleteSession(id) {
-  if (!confirm("¿Eliminar sesión?")) return;
+  const ok = await confirmSheet({
+    title: "¿Eliminar sesión?",
+    message: "Se eliminará la sesión con todas sus series registradas. Esta acción no se puede deshacer.",
+  });
+  if (!ok) return;
   await api(`/api/sessions/${id}`, { method: "DELETE" });
   loadHistory();
 }

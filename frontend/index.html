@@ -38,8 +38,18 @@
   .nav-btn[aria-selected="true"] { color: #a3e635; /* lime-400 */ }
   .nav-btn[aria-selected="true"] .nav-pill { opacity: 1; transform: scale(1); }
   .nav-btn:focus-visible { outline: 2px solid #a3e635; outline-offset: 2px; border-radius: 12px; }
+  /* ---- Bottom sheet ---- */
+  #sheetPanel {
+    transform: translateY(100%);
+    transition: transform .2s ease-out;
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  #sheetBackdrop { opacity: 0; transition: opacity .2s ease-out; }
+  #sheet.open #sheetPanel { transform: translateY(0); }
+  #sheet.open #sheetBackdrop { opacity: 1; }
   @media (prefers-reduced-motion: reduce) {
     .nav-btn, .nav-btn .nav-pill { transition: none !important; }
+    #sheetPanel, #sheetBackdrop { transition: none !important; }
   }
 </style>
 </head>
@@ -123,7 +133,7 @@
       </div>
       <label class="text-xs text-zinc-400">Nota global de la sesión</label>
       <textarea id="activeNotes" rows="2" class="w-full bg-zinc-800 rounded-xl px-3 py-2 text-sm mb-3" placeholder="Cómo fue el entreno…"></textarea>
-      <button onclick="saveSessionNotes()" class="text-xs bg-zinc-700 rounded-lg px-3 py-1 mb-4">💾 Guardar nota</button>
+      <button onclick="saveSessionNotes(this)" class="text-xs bg-zinc-700 rounded-lg px-3 py-1 mb-4 min-h-[44px]">💾 Guardar nota</button>
       <div id="activeExercises" class="space-y-4"></div>
       <div class="mt-4 flex gap-2">
         <select id="addExSelect" class="flex-1 bg-zinc-800 rounded-xl px-3 py-2"></select>
@@ -185,6 +195,22 @@
   </section>
 
 </div>
+
+<!-- ============ BOTTOM SHEET (Fase 3: sustituye alert/confirm) ============ -->
+<div id="sheet" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div id="sheetBackdrop" class="absolute inset-0 bg-black/60"></div>
+  <div id="sheetPanel"
+       class="absolute bottom-0 inset-x-0 mx-auto max-w-md bg-zinc-900 border border-zinc-800
+              rounded-t-2xl md:bottom-4 md:rounded-2xl md:shadow-2xl">
+    <div class="flex items-center justify-between pl-4 pr-2 pt-2">
+      <h3 id="sheetTitle" class="font-bold"></h3>
+      <button id="sheetClose" class="min-w-[44px] min-h-[44px] px-3 text-zinc-400 rounded-xl" aria-label="Cerrar">✕</button>
+    </div>
+    <div id="sheetBody" class="px-4 pb-2 text-sm text-zinc-300 max-h-[60vh] overflow-auto"></div>
+    <div id="sheetActions" class="flex gap-2 p-4"></div>
+  </div>
+</div>
+
 <script src="/static/app.js"></script>
 <script>
   // Fase 1 PWA: registra el Service Worker (scope /). No rompe si falla.
