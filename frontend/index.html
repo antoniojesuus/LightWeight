@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LightWeight — Seguimiento de entrenos</title>
+<meta name="description" content="App local de seguimiento de entrenamientos en el gimnasio." />
+<meta name="theme-color" content="#09090b" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="LightWeight" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+<div class="max-w-5xl mx-auto px-4 pb-24">
+
+  <header class="py-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-black tracking-tight">🏋️ LightWeight</h1>
+      <p class="text-zinc-400 text-sm">Seguimiento local de entrenamientos</p>
+    </div>
+    <span id="status" class="text-xs px-3 py-1 rounded-full bg-zinc-800 text-zinc-300">conectando…</span>
+  </header>
+
+  <nav class="grid grid-cols-4 gap-2 mb-6">
+    <button data-tab="entrenar" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-lime-400 text-black">Entrenar</button>
+    <button data-tab="rutinas" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-zinc-800">Rutinas</button>
+    <button data-tab="historial" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-zinc-800">Historial</button>
+    <button data-tab="progreso" class="tab-btn px-3 py-2 rounded-xl font-semibold bg-zinc-800">Progreso</button>
+  </nav>
+
+  <!-- ============ ENTRENAR ============ -->
+  <section id="tab-entrenar">
+    <div class="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <h2 class="font-bold text-lg mb-2">Iniciar sesión</h2>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <select id="routineSelect" class="flex-1 bg-zinc-800 rounded-xl px-3 py-2"></select>
+        <input id="sessionName" placeholder="Nombre (opcional)" class="flex-1 bg-zinc-800 rounded-xl px-3 py-2" />
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button onclick="startSession(true)" class="flex-1 bg-lime-400 text-black font-bold rounded-xl px-3 py-2">▶ Desde rutina</button>
+        <button onclick="startSession(false)" class="flex-1 bg-zinc-700 font-bold rounded-xl px-3 py-2">＋ Sesión libre</button>
+      </div>
+    </div>
+
+    <div id="activeSession" class="hidden bg-zinc-900 rounded-2xl p-4 mb-4 border border-lime-400/30">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <div>
+          <h2 id="activeName" class="font-bold text-lg"></h2>
+          <p id="activeMeta" class="text-xs text-zinc-400"></p>
+        </div>
+        <button onclick="closeSession()" class="text-xs bg-zinc-800 rounded-lg px-3 py-1">cerrar</button>
+      </div>
+      <label class="text-xs text-zinc-400">Nota global de la sesión</label>
+      <textarea id="activeNotes" rows="2" class="w-full bg-zinc-800 rounded-xl px-3 py-2 text-sm mb-3" placeholder="Cómo fue el entreno…"></textarea>
+      <button onclick="saveSessionNotes()" class="text-xs bg-zinc-700 rounded-lg px-3 py-1 mb-4">💾 Guardar nota</button>
+      <div id="activeExercises" class="space-y-4"></div>
+      <div class="mt-4 flex gap-2">
+        <select id="addExSelect" class="flex-1 bg-zinc-800 rounded-xl px-3 py-2"></select>
+        <button onclick="addExerciseToSession()" class="bg-lime-400 text-black font-bold rounded-xl px-4">Añadir</button>
+      </div>
+      <p class="text-xs text-zinc-500 mt-2">💡 Puedes añadir o quitar ejercicios y series sobre la marcha.</p>
+    </div>
+
+    <div class="bg-zinc-900 rounded-2xl p-4">
+      <h3 class="font-bold mb-2">Catálogo de ejercicios</h3>
+      <div class="flex gap-2 mb-3">
+        <input id="newExName" placeholder="Nombre (ej: Hip thrust)" class="flex-1 bg-zinc-800 rounded-xl px-3 py-2 text-sm" />
+        <input id="newExMuscle" placeholder="Músculo" class="w-32 bg-zinc-800 rounded-xl px-3 py-2 text-sm" />
+        <button onclick="createExercise()" class="bg-lime-400 text-black font-bold rounded-xl px-4 text-sm">＋</button>
+      </div>
+      <div id="exerciseList" class="flex flex-wrap gap-2"></div>
+    </div>
+  </section>
+
+  <!-- ============ RUTINAS ============ -->
+  <section id="tab-rutinas" class="hidden">
+    <div class="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <h2 class="font-bold text-lg mb-2">Nueva rutina</h2>
+      <div class="flex gap-2">
+        <input id="newRoutineName" placeholder="Ej: Push Day" class="flex-1 bg-zinc-800 rounded-xl px-3 py-2 text-sm" />
+        <button onclick="createRoutine()" class="bg-lime-400 text-black font-bold rounded-xl px-4 text-sm">Crear</button>
+      </div>
+      <input id="newRoutineDesc" placeholder="Descripción (opcional)" class="w-full mt-2 bg-zinc-800 rounded-xl px-3 py-2 text-sm" />
+    </div>
+    <div id="routineList" class="space-y-4"></div>
+  </section>
+
+  <!-- ============ HISTORIAL ============ -->
+  <section id="tab-historial" class="hidden">
+    <div class="bg-zinc-900 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-lg">Últimas sesiones</h2>
+        <button onclick="loadHistory()" class="text-xs bg-zinc-700 rounded-lg px-3 py-1">↻ Recargar</button>
+      </div>
+      <div id="historyList" class="space-y-4"></div>
+    </div>
+  </section>
+
+  <!-- ============ PROGRESO ============ -->
+  <section id="tab-progreso" class="hidden">
+    <div class="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <h2 class="font-bold text-lg mb-2">Evolución por ejercicio</h2>
+      <select id="progressSelect" class="w-full bg-zinc-800 rounded-xl px-3 py-2" onchange="loadProgress()"></select>
+      <div id="lastTime" class="text-sm text-zinc-300 mt-3 bg-zinc-800 rounded-xl p-3"></div>
+    </div>
+    <div class="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <h3 class="font-bold text-sm mb-2">Peso máximo por sesión (kg)</h3>
+      <canvas id="chartMax" height="120"></canvas>
+    </div>
+    <div class="bg-zinc-900 rounded-2xl p-4">
+      <h3 class="font-bold text-sm mb-2">Volumen total por sesión (kg)</h3>
+      <canvas id="chartVol" height="120"></canvas>
+    </div>
+  </section>
+
+</div>
+<script src="/static/app.js"></script>
+<script>
+  // Fase 1 PWA: registra el Service Worker (scope /). No rompe si falla.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.warn("[PWA] SW no registrado:", err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
