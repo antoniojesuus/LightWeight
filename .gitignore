@@ -98,3 +98,10 @@ $RECYCLE.BIN/
 
 # Carpeta opencode
 .opencode/
+
+### LightWeight local artifacts
+lightweight.db
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+.pnpm-store/

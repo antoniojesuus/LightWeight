@@ -2,7 +2,7 @@
 
 App local de seguimiento de entrenamientos en el gimnasio.
 
-**Stack:** FastAPI + SQLite (SQLAlchemy) + HTML/Tailwind (CDN) + JS vainilla + Chart.js.
+**Stack:** FastAPI + SQLite (SQLAlchemy) + React + TypeScript + Vite + Tailwind CSS + Chart.js.
 
 ## Estructura
 
@@ -15,8 +15,10 @@ App local de seguimiento de entrenamientos en el gimnasio.
 │   ├── schemas.py    # Pydantic
 │   └── main.py       # FastAPI + endpoints + sirve frontend
 ├── frontend/
-│   ├── index.html
-│   └── app.js
+│   ├── src/              # SPA React + TypeScript
+│   ├── public/icons/     # iconos de la PWA
+│   ├── package.json
+│   └── vite.config.ts
 ├── requirements.txt
 └── lightweight.db    # se crea sola al arrancar
 ```
@@ -34,12 +36,42 @@ Sin tiempos de descanso, según requisito.
 ## Uso local
 
 ```bash
+# Backend (una sola vez)
 pip install -r requirements.txt
+
+# Frontend (una sola vez y después de cada cambio de dependencias)
+cd frontend
+pnpm install
+pnpm build
+cd ..
+
+# App compilada
 uvicorn backend.main:app --reload
 ```
 
 - App: http://127.0.0.1:8000
 - Docs API: http://127.0.0.1:8000/docs
+
+Para desarrollar la interfaz con recarga en caliente, usa dos terminales:
+
+```bash
+# terminal 1, raíz del proyecto
+uvicorn backend.main:app --reload
+
+# terminal 2
+cd frontend
+pnpm dev
+```
+
+El servidor de Vite redirige `/api` a FastAPI. El build final queda en
+`frontend/dist/` (ignorado por Git) y FastAPI lo sirve en producción. Verificaciones:
+
+```bash
+cd frontend
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
 ## Flujo
 
