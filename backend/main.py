@@ -448,45 +448,17 @@ def last_time_exercise(exercise_id: int, db: Session = Depends(get_db)):
     }
 
 
-# ---------- Frontend estático ----------
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+# ---------- Frontend compilado (Vite) ----------
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIST = os.path.join(PROJECT_DIR, "frontend", "dist")
 
-if os.path.isdir(FRONTEND_DIR):
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-
-@app.get("/sw.js", include_in_schema=False)
-def serve_sw():
-    path = os.path.join(FRONTEND_DIR, "sw.js")
-    if os.path.exists(path):
-        return FileResponse(path, media_type="application/javascript")
-    raise HTTPException(404, "sw.js no encontrado")
-
-
-@app.get("/manifest.webmanifest", include_in_schema=False)
-@app.get("/manifest.json", include_in_schema=False)
-def serve_manifest():
-    for name in ("manifest.webmanifest", "manifest.json"):
-        path = os.path.join(FRONTEND_DIR, name)
-        if os.path.exists(path):
-            return FileResponse(path, media_type="application/manifest+json")
-    raise HTTPException(404, "manifest no encontrado")
-
-
-@app.get("/icons/{filename}", include_in_schema=False)
-def serve_icon(filename: str):
-    # Solo sirve ficheros dentro de frontend/icons (evita path traversal)
-    if "/" in filename or "\\" in filename or filename.startswith("."):
-        raise HTTPException(400, "Nombre de icono inválido")
-    path = os.path.join(FRONTEND_DIR, "icons", filename)
-    if os.path.exists(path):
-        return FileResponse(path)
-    raise HTTPException(404, "Icono no encontrado")
-
-
-@app.get("/", include_in_schema=False)
-def serve_index():
-    index = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index):
-        return FileResponse(index)
-    return {"msg": "LightWeight API. Ver /docs. Falta frontend/index.html"}
+# Las rutas API se declaran antes de este mount, así que siguen teniendo prioridad.
+# El frontend usa navegación hash y Vite copia manifest, iconos y service worker al build.
+if os.path.isdir(FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+else:
+    @app.get("/", include_in_schema=False)
+    def frontend_not_built():
+        return {
+            "msg": "Frontend no compilado. Ejecuta `pnpm install` y `pnpm build` en frontend/."
+        }
