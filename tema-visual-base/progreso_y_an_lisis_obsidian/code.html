@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;font-family:'Geist',sans-serif;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary": "#a78bfa",
+          "on-primary": "#0a0012",
+          "on-error": "#1a0000",
+          "primary-container": "#7c3aed",
+          "surface-container-low": "#0f0f12",
+          "on-secondary": "#09090b",
+          "tertiary-container": "#065f46",
+          "on-tertiary": "#001a12",
+          "on-tertiary-container": "#bbf7d0",
+          "on-secondary-container": "#a1a1aa",
+          "on-surface-variant": "#a1a1aa",
+          "on-surface": "#fafafa",
+          "secondary-fixed-dim": "#71717a",
+          "surface-dim": "#0c0c0f",
+          "surface-container-highest": "#1e1e22",
+          "on-primary-container": "#ede9fe",
+          "primary-fixed": "#ede9fe",
+          "outline": "#25252e",
+          "surface-container": "#121216",
+          "tertiary-fixed": "#bbf7d0",
+          "on-background": "#fafafa",
+          "secondary": "#a1a1aa",
+          "error": "#ef4444",
+          "secondary-container": "#27272a",
+          "on-primary-fixed": "#2e1065",
+          "background": "#0a0a0c",
+          "on-primary-fixed-variant": "#5b21b6",
+          "surface-tint": "#a78bfa",
+          "secondary-fixed": "#a1a1aa",
+          "on-secondary-fixed-variant": "#3f3f46",
+          "on-tertiary-fixed": "#003318",
+          "on-error-container": "#fca5a5",
+          "on-secondary-fixed": "#18181b",
+          "outline-variant": "#1f1f26",
+          "tertiary-fixed-dim": "#6ee7b7",
+          "surface": "#0a0a0c",
+          "tertiary": "#38bdf8",
+          "error-container": "#3b1111",
+          "surface-variant": "#17171e",
+          "primary-fixed-dim": "#c4b5fd",
+          "on-tertiary-fixed-variant": "#047857",
+          "surface-bright": "#1a1a22",
+          "inverse-surface": "#fafafa",
+          "surface-container-high": "#17171e",
+          "inverse-on-surface": "#09090b",
+          "inverse-primary": "#5b21b6",
+          "surface-container-lowest": "#070709"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "fontFamily": {
+          "headline": ["Geist", "sans-serif"],
+          "display": ["Geist", "sans-serif"],
+          "body": ["Geist", "sans-serif"],
+          "label": ["Geist", "sans-serif"],
+          "mono": ["JetBrains Mono", "monospace"]
+        }
+      },
+    },
+  }
+</script></head><body class="bg-background font-body text-sm text-on-surface antialiased min-h-screen selection:bg-primary/20 selection:text-primary"><aside class="fixed left-0 top-0 bottom-0 w-64 bg-surface-container-lowest flex flex-col z-50 border-r border-outline"><div class="h-16 px-6 flex items-center gap-3 border-b border-outline-variant"><div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center"><span class="material-symbols-outlined text-primary text-[20px]">fitness_center</span></div><div class="flex flex-col"><span class="font-headline font-bold text-sm tracking-wide uppercase text-on-surface">LightWeight</span><span class="text-[10px] font-mono text-primary/70 tracking-widest uppercase">Obsidian Core</span></div></div><div class="px-4 py-3"><div class="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low border border-outline-variant rounded-lg text-primary"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#a78bfa]"></span><span class="font-mono text-[11px] tracking-wider uppercase truncate text-on-surface-variant font-medium">Base de datos local activa</span></div></div><nav class="flex-1 px-3 py-2 flex flex-col gap-1"><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors text-sm font-medium" data-path="planificador-de-rutinas" href="#"><span class="material-symbols-outlined text-[19px]">edit_calendar</span><span>Planificador de Rutinas</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors text-sm font-medium" data-path="historial" href="#"><span class="material-symbols-outlined text-[19px]">menu_book</span><span>Historial</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary font-semibold text-sm transition-colors shadow-sm" data-path="progreso-y-analisis" href="#"><span class="material-symbols-outlined text-[19px]">insights</span><span>Progreso y Análisis</span></a></nav><div class="p-3 bg-surface-container-low mx-3 mb-4 rounded-lg border border-outline flex flex-col gap-1.5"><div class="flex justify-between items-center"><span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Motor Local</span><span class="font-mono text-xs text-primary font-semibold">IndexedDB</span></div><div class="flex justify-between items-center"><span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Sincronización</span><span class="font-mono text-xs text-on-surface font-medium">100% Offline</span></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-background/85 backdrop-blur-xl z-40 px-8 flex items-center justify-between border-b border-outline"><div class="flex items-center gap-3"><span class="font-mono text-xs text-on-surface-variant uppercase tracking-wider">Sesión de Fuerza</span><span class="px-2 py-0.5 bg-surface-container-highest border border-outline text-primary-fixed-dim rounded font-mono text-[11px] font-semibold">v2.4-OBSIDIAN</span></div><div class="flex items-center gap-6"><div class="hidden lg:flex items-center gap-6"><div class="flex flex-col text-right"><span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Volumen Total (Sem)</span><span class="font-mono text-sm font-bold text-on-surface">38,450 kg</span></div><div class="flex flex-col text-right"><span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Series Completadas</span><span class="font-mono text-sm font-bold text-primary">42 / 48</span></div></div><div class="h-6 w-px bg-outline"></div><div class="flex items-center gap-3"><div class="text-right hidden sm:block"><div class="font-medium text-sm text-on-surface">Atleta Principal</div><div class="font-mono text-[10px] text-on-surface-variant">RPE Mod: Powerlifting</div></div><div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline flex items-center justify-center text-primary"><span class="material-symbols-outlined text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 bg-background px-8"><div class="flex flex-col w-full pb-14 gap-6">
+<!-- Sub-Header & Telemetry Ribbon -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pt-6">
+<div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#a78bfa]"></span>
+<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase">MÓDULO DE TELEMETRÍA AT</span>
+<span class="text-outline">/</span>
+<span class="font-mono text-[10px] text-primary tracking-wider uppercase font-semibold">MOTOR BIOMECÁNICO ACTIVO</span>
+</div>
+<h1 class="text-2xl lg:text-3xl font-bold text-on-surface tracking-tight">Análisis y Evolución de Fuerza</h1>
+<p class="text-xs text-on-surface-variant mt-1">Diagnóstico longitudinal de sobrecarga progresiva, estimación 1RM y densidad neuromuscular.</p>
+</div>
+<!-- Quick Control Bar -->
+<div class="flex flex-wrap items-center gap-3">
+<!-- Exercise Selector Dropdown Mimic -->
+<div class="relative min-w-[280px]">
+<div class="font-mono text-[10px] text-on-surface-variant mb-1 uppercase tracking-wider">Ejercicio de Referencia</div>
+<div class="bg-surface-container-high border border-outline px-3.5 py-2 rounded-lg flex items-center justify-between cursor-pointer hover:border-primary/50 transition-colors shadow-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">fitness_center</span>
+<span class="font-medium text-xs text-on-surface">Press de Banca Plano con Barra</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">unfold_more</span>
+</div>
+</div>
+<!-- Time Window Pill Filters -->
+<div>
+<div class="font-mono text-[10px] text-on-surface-variant mb-1 uppercase tracking-wider">Ventana Temporal</div>
+<div class="bg-surface-container-lowest p-1 rounded-lg border border-outline flex items-center gap-0.5">
+<button class="px-2.5 py-1 rounded-md font-mono text-[11px] text-on-surface-variant hover:text-on-surface transition-colors">1M</button>
+<button class="px-2.5 py-1 rounded-md font-mono text-[11px] bg-primary text-on-primary font-bold shadow-sm">3M</button>
+<button class="px-2.5 py-1 rounded-md font-mono text-[11px] text-on-surface-variant hover:text-on-surface transition-colors">6M</button>
+<button class="px-2.5 py-1 rounded-md font-mono text-[11px] text-on-surface-variant hover:text-on-surface transition-colors">1A</button>
+<button class="px-2.5 py-1 rounded-md font-mono text-[11px] text-on-surface-variant hover:text-on-surface transition-colors">HISTÓRICO</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Key Metrics Bento Grid (4 Telemetry Cards) -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+<!-- 1RM Estimado -->
+<div class="bg-surface-container-high border border-outline p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group hover:border-primary/40 transition-colors">
+<div class="absolute -right-8 -top-8 w-24 h-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+<div>
+<div class="flex items-center justify-between">
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">1RM Estimado Actual</span>
+<span class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-mono text-[10px] font-semibold">FORMULA: BRZYCKI</span>
+</div>
+<div class="mt-3 flex items-baseline gap-1.5">
+<span class="font-mono text-3xl font-extrabold text-on-surface tracking-tight">135.0</span>
+<span class="font-mono text-sm text-on-surface-variant">kg</span>
+</div>
+</div>
+<div class="mt-4 pt-2.5 flex items-center justify-between border-t border-outline-variant -mx-4 -mb-4 px-4 py-2.5 bg-surface-container-low">
+<span class="text-xs text-on-surface-variant">Delta vs ciclo previo</span>
+<div class="flex items-center gap-1 text-primary font-mono text-xs font-bold">
+<span class="material-symbols-outlined text-[15px]">trending_up</span>
+<span>+7.5 kg (+5.8%)</span>
+</div>
+</div>
+</div>
+<!-- Carga Máxima Registrada -->
+<div class="bg-surface-container-high border border-outline p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group hover:border-primary/40 transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Carga Máx. Real</span>
+<div class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline text-primary font-mono text-[10px] flex items-center gap-1 font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> PR VIGENTE
+</div>
+</div>
+<div class="mt-3 flex items-baseline gap-1.5">
+<span class="font-mono text-3xl font-extrabold text-primary tracking-tight">120.0</span>
+<span class="font-mono text-sm text-on-surface-variant">kg × 3 reps</span>
+</div>
+</div>
+<div class="mt-4 pt-2.5 flex items-center justify-between border-t border-outline-variant -mx-4 -mb-4 px-4 py-2.5 bg-surface-container-low">
+<span class="text-xs text-on-surface-variant">RPE 9.5 • 14 Oct</span>
+<span class="font-mono text-xs text-primary font-semibold">1RM Calc: 130.8 kg</span>
+</div>
+</div>
+<!-- Volumen promedio por sesión -->
+<div class="bg-surface-container-high border border-outline p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group hover:border-primary/40 transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Volumen Promedio / Sesión</span>
+<span class="font-mono text-[10px] text-on-surface-variant">Últimas 12 sem</span>
+</div>
+<div class="mt-3 flex items-baseline gap-1.5">
+<span class="font-mono text-3xl font-extrabold text-on-surface tracking-tight">3,840</span>
+<span class="font-mono text-sm text-on-surface-variant">kg netos</span>
+</div>
+</div>
+<div class="mt-4 pt-2.5 flex items-center justify-between border-t border-outline-variant -mx-4 -mb-4 px-4 py-2.5 bg-surface-container-low">
+<span class="text-xs text-on-surface-variant">Sobrecarga de tonelaje</span>
+<div class="flex items-center gap-1 text-primary font-mono text-xs font-semibold">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+<span>+412 kg / bloque</span>
+</div>
+</div>
+</div>
+<!-- Frecuencia semanal -->
+<div class="bg-surface-container-high border border-outline p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group hover:border-primary/40 transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Frecuencia Específica</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline text-on-surface font-mono text-[10px] font-semibold">ÓPTIMO</span>
+</div>
+<div class="mt-3 flex items-baseline gap-1.5">
+<span class="font-mono text-3xl font-extrabold text-on-surface tracking-tight">2.1</span>
+<span class="font-mono text-sm text-on-surface-variant">sesiones / sem</span>
+</div>
+</div>
+<div class="mt-4 pt-2.5 flex items-center justify-between border-t border-outline-variant -mx-4 -mb-4 px-4 py-2.5 bg-surface-container-low">
+<span class="text-xs text-on-surface-variant">Descanso inter-sesión</span>
+<span class="font-mono text-xs text-on-surface font-medium">~68.4 horas</span>
+</div>
+</div>
+</div>
+<!-- Primary Analytics Canvas: Charts Section -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+<!-- Chart 1: 1RM Evolution Curve (8 Cols) -->
+<div class="xl:col-span-8 bg-surface-container-high border border-outline p-5 rounded-xl flex flex-col justify-between shadow-lg">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+<div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded bg-primary shadow-[0_0_8px_#a78bfa]"></span>
+<h2 class="text-base font-bold text-on-surface">Evolución de Fuerza Máxima Estimada (1RM)</h2>
+</div>
+<p class="text-xs text-on-surface-variant mt-0.5">Regresión matemática polinómica con registro de picos de tensión mecánica.</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5 font-mono text-[11px] text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#a78bfa]"></span>
+<span>PR Detectado</span>
+</div>
+<div class="flex items-center gap-1.5 font-mono text-[11px] text-on-surface-variant">
+<span class="w-2 h-0.5 bg-primary-fixed-dim"></span>
+<span>Tendencia Base</span>
+</div>
+</div>
+</div>
+<!-- Tech Vector Chart: 1RM Line -->
+<div class="relative w-full h-[280px] bg-surface-container-lowest rounded-lg border border-outline-variant p-3 flex flex-col justify-between">
+<!-- SVG Grid & Data Line -->
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 760 220">
+<defs>
+<lineargradient id="obsidianGlow" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#a78bfa" stop-opacity="0.32"></stop>
+<stop offset="100%" stop-color="#a78bfa" stop-opacity="0.0"></stop>
+</lineargradient>
+<lineargradient id="obsidianLineStroke" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#7c3aed"></stop>
+<stop offset="50%" stop-color="#a78bfa"></stop>
+<stop offset="100%" stop-color="#c4b5fd"></stop>
+</lineargradient>
+</defs>
+<!-- Horizontal Reference Gridlines -->
+<line stroke="#1f1f26" stroke-dasharray="3 3" x1="0" x2="760" y1="30" y2="30"></line>
+<line stroke="#1f1f26" stroke-dasharray="3 3" x1="0" x2="760" y1="80" y2="80"></line>
+<line stroke="#1f1f26" stroke-dasharray="3 3" x1="0" x2="760" y1="130" y2="130"></line>
+<line stroke="#1f1f26" stroke-dasharray="3 3" x1="0" x2="760" y1="180" y2="180"></line>
+<!-- Filled Gradient Area Under Curve -->
+<polygon fill="url(#obsidianGlow)" points="40,175 110,165 180,160 250,145 320,135 390,138 460,115 530,105 600,90 670,72 730,48 730,210 40,210"></polygon>
+<!-- Main 1RM Trajectory Path -->
+<path d="M40 175 C90 170, 130 162, 180 160 S270 140, 320 135 S410 142, 460 115 S550 102, 600 90 S680 65, 730 48" fill="none" stroke="url(#obsidianLineStroke)" stroke-linecap="round" stroke-width="3"></path>
+<!-- Historical Markers & PR Flags -->
+<circle cx="40" cy="175" fill="#7c3aed" r="4"></circle>
+<circle cx="180" cy="160" fill="#7c3aed" r="4"></circle>
+<circle cx="250" cy="145" fill="#7c3aed" r="4"></circle>
+<!-- PR Milestone 1: 122.5 kg -->
+<g class="cursor-pointer">
+<circle cx="320" cy="135" fill="#a78bfa" r="5"></circle>
+<circle cx="320" cy="135" fill="none" r="10" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"></circle>
+</g>
+<!-- PR Milestone 2: 128 kg -->
+<g class="cursor-pointer">
+<circle cx="460" cy="115" fill="#a78bfa" r="5"></circle>
+<circle cx="460" cy="115" fill="none" r="11" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"></circle>
+</g>
+<!-- PR Milestone 3: 135 kg (CURRENT PEAK) -->
+<g class="cursor-pointer">
+<circle cx="730" cy="48" fill="#c4b5fd" r="6"></circle>
+<circle cx="730" cy="48" fill="none" r="14" stroke="#a78bfa" stroke-opacity="0.8" stroke-width="2"></circle>
+<!-- Glowing PR Callout Badge -->
+<rect fill="#a78bfa" height="22" rx="4" width="86" x="645" y="10"></rect>
+<text fill="#0a0012" font-family="JetBrains Mono" font-size="11" font-weight="700" text-anchor="middle" x="688" y="25">PR 135.0 KG</text>
+</g>
+</svg>
+<!-- Dynamic Axis Labels -->
+<div class="flex justify-between items-center pt-2 text-on-surface-variant font-mono text-[11px] uppercase">
+<span>Semana 01 (118 kg)</span>
+<span>Sem 04 (122.5 kg)</span>
+<span>Sem 08 (126.0 kg)</span>
+<span>Sem 10 (130.0 kg)</span>
+<span class="text-primary font-bold">Sem 12 (Actual: 135 kg)</span>
+</div>
+</div>
+<!-- Quick Analysis Breakdown Footer -->
+<div class="mt-4 grid grid-cols-3 gap-3 text-center">
+<div class="bg-surface-container py-2.5 px-3 rounded-lg border border-outline">
+<div class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Tasa de Aumento</div>
+<div class="font-mono text-sm font-bold text-on-surface mt-0.5">+1.41 kg/semana</div>
+</div>
+<div class="bg-surface-container py-2.5 px-3 rounded-lg border border-outline">
+<div class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Eficiencia RPE</div>
+<div class="font-mono text-sm font-bold text-primary mt-0.5">RPE 8.7 Med</div>
+</div>
+<div class="bg-surface-container py-2.5 px-3 rounded-lg border border-outline">
+<div class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Proyección Ciclo</div>
+<div class="font-mono text-sm font-bold text-primary-fixed-dim mt-0.5">140.0 kg (6 sem)</div>
+</div>
+</div>
+</div>
+<!-- Right Side: Volume Breakdown / Muscular Distribution (4 Cols) -->
+<div class="xl:col-span-4 bg-surface-container-high border border-outline p-5 rounded-xl flex flex-col justify-between shadow-lg">
+<div>
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">pie_chart</span>
+<h2 class="text-base font-bold text-on-surface">Distribución de Volumen</h2>
+</div>
+<span class="font-mono text-[10px] text-on-surface-variant uppercase">Ciclo Activo</span>
+</div>
+<p class="text-xs text-on-surface-variant mb-5">Equilibrio estructural por grupo muscular acumulado (últimos 30 días).</p>
+</div>
+<!-- Muscle Split Horizontal Load Bars -->
+<div class="flex flex-col gap-3.5 my-auto">
+<!-- Chest (Target focus) -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-center font-mono text-xs">
+<span class="text-on-surface font-medium flex items-center gap-2">
+<span class="w-2 h-2 rounded bg-primary shadow-[0_0_6px_#a78bfa]"></span> PECHO / PUSH
+</span>
+<span class="text-primary font-bold">18,650 kg (34%)</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-primary rounded-full shadow-[0_0_8px_#a78bfa]" style="width: 34%;"></div>
+</div>
+</div>
+<!-- Back -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-center font-mono text-xs">
+<span class="text-on-surface font-medium flex items-center gap-2">
+<span class="w-2 h-2 rounded bg-primary-container"></span> ESPALDA / PULL
+</span>
+<span class="text-on-surface-variant font-medium">15,320 kg (28%)</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-primary-container rounded-full" style="width: 28%;"></div>
+</div>
+</div>
+<!-- Legs -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-center font-mono text-xs">
+<span class="text-on-surface font-medium flex items-center gap-2">
+<span class="w-2 h-2 rounded bg-surface-bright"></span> PIERNAS / SQUAT-HINGE
+</span>
+<span class="text-on-surface-variant font-medium">12,100 kg (22%)</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-secondary rounded-full" style="width: 22%;"></div>
+</div>
+</div>
+<!-- Shoulders -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-center font-mono text-xs">
+<span class="text-on-surface font-medium flex items-center gap-2">
+<span class="w-2 h-2 rounded bg-secondary-container"></span> HOMBRO / DELTOIDES
+</span>
+<span class="text-on-surface-variant font-medium">5,480 kg (10%)</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-secondary-fixed-dim rounded-full" style="width: 10%;"></div>
+</div>
+</div>
+<!-- Arms -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-center font-mono text-xs">
+<span class="text-on-surface font-medium flex items-center gap-2">
+<span class="w-2 h-2 rounded bg-outline"></span> BRAZOS / ACCESORIOS
+</span>
+<span class="text-on-surface-variant font-medium">3,290 kg (6%)</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-outline rounded-full" style="width: 6%;"></div>
+</div>
+</div>
+</div>
+<!-- Coach Ratio Diagnostic -->
+<div class="p-3 bg-surface-container border border-outline rounded-lg flex items-center gap-3 mt-5">
+<span class="material-symbols-outlined text-primary text-[20px]">balance</span>
+<div class="flex flex-col">
+<span class="font-mono text-xs text-on-surface uppercase font-bold">Ratio Push:Pull (1.21:1.00)</span>
+<span class="text-xs text-on-surface-variant">Balance simétrico óptimo para salud de hombro.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Chart 2: Session Volume & Progressive Overload Tracking -->
+<div class="bg-surface-container-high border border-outline p-5 rounded-xl shadow-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">bar_chart</span>
+<h2 class="text-base font-bold text-on-surface">Volumen de Carga por Sesión (Tonelaje Acumulado)</h2>
+</div>
+<p class="text-xs text-on-surface-variant">Monitoreo de sobrecarga progresiva (kg totales levantados por entrenamiento en Press Plano).</p>
+</div>
+<div class="flex items-center gap-4 bg-surface-container border border-outline px-3 py-1.5 rounded-lg">
+<div class="flex items-center gap-1.5">
+<div class="w-3 h-3 bg-primary-container rounded-sm"></div>
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Volumen Real</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="w-3 h-1 bg-primary rounded-full shadow-[0_0_6px_#a78bfa]"></div>
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Media Móvil (3.8k kg)</span>
+</div>
+</div>
+</div>
+<!-- Bar Chart Layout -->
+<div class="w-full h-48 bg-surface-container-lowest rounded-lg border border-outline-variant p-3 relative flex flex-col justify-end">
+<!-- Target Overlay Bar Graphic -->
+<div class="absolute inset-x-0 top-1/2 h-px bg-primary/20 z-0"></div>
+<!-- Bar items flex container -->
+<div class="relative z-10 flex items-end justify-between gap-2 h-full pt-4">
+<!-- S1 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">3,120</span>
+<div class="w-full bg-surface-container-highest group-hover:bg-primary-container transition-all rounded-t" style="height: 52%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S1</span>
+</div>
+<!-- S2 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">3,300</span>
+<div class="w-full bg-surface-container-highest group-hover:bg-primary-container transition-all rounded-t" style="height: 56%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S2</span>
+</div>
+<!-- S3 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">3,450</span>
+<div class="w-full bg-surface-container-highest group-hover:bg-primary-container transition-all rounded-t" style="height: 60%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S3</span>
+</div>
+<!-- S4 (Deload / Descarga) -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-secondary opacity-0 group-hover:opacity-100 transition-opacity">2,400</span>
+<div class="w-full bg-surface-container-highest/40 group-hover:bg-surface-bright transition-all rounded-t border-t-2 border-dashed border-outline" style="height: 38%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S4 (Desc)</span>
+</div>
+<!-- S5 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">3,600</span>
+<div class="w-full bg-surface-container-highest group-hover:bg-primary-container transition-all rounded-t" style="height: 64%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S5</span>
+</div>
+<!-- S6 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">3,780</span>
+<div class="w-full bg-surface-container-highest group-hover:bg-primary-container transition-all rounded-t" style="height: 68%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S6</span>
+</div>
+<!-- S7 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">3,920</span>
+<div class="w-full bg-surface-container-highest group-hover:bg-primary-container transition-all rounded-t" style="height: 72%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S7</span>
+</div>
+<!-- S8 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">4,150</span>
+<div class="w-full bg-primary-container/80 group-hover:bg-primary transition-all rounded-t" style="height: 78%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S8</span>
+</div>
+<!-- S9 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">4,280</span>
+<div class="w-full bg-primary-container/80 group-hover:bg-primary transition-all rounded-t" style="height: 82%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S9</span>
+</div>
+<!-- S10 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">4,400</span>
+<div class="w-full bg-primary-container/80 group-hover:bg-primary transition-all rounded-t" style="height: 86%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S10</span>
+</div>
+<!-- S11 -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">4,350</span>
+<div class="w-full bg-primary-container/80 group-hover:bg-primary transition-all rounded-t" style="height: 84%;"></div>
+<span class="font-mono text-[10px] text-on-surface-variant">S11</span>
+</div>
+<!-- S12 (Current Peak) -->
+<div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+<span class="font-mono text-[10px] text-primary font-bold opacity-100">4,620</span>
+<div class="w-full bg-primary rounded-t shadow-[0_0_12px_rgba(167,139,250,0.5)]" style="height: 94%;"></div>
+<span class="font-mono text-[10px] text-primary font-bold">S12 (PR)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Historical Records & Best Sets Table (High Density Data Ledger) -->
+<div class="bg-surface-container-high border border-outline rounded-xl shadow-md overflow-hidden flex flex-col">
+<div class="p-4 bg-surface-container border-b border-outline flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-[22px]">military_tech</span>
+<div>
+<h2 class="text-sm font-bold text-on-surface uppercase tracking-wide">Récords y Mejores Series Registradas</h2>
+<span class="text-xs text-on-surface-variant">Historial validado bajo normativas de pausa y control técnico</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Ecuación en pantalla:</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline text-primary font-mono text-xs font-semibold">Brzycki &amp; Epley Comp.</span>
+</div>
+</div>
+<!-- Table -->
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest text-on-surface-variant font-mono text-[10px] uppercase tracking-wider border-b border-outline">
+<th class="py-3 px-4">Fecha</th>
+<th class="py-3 px-4">Carga</th>
+<th class="py-3 px-4">Reps</th>
+<th class="py-3 px-4">RPE</th>
+<th class="py-3 px-4">1RM Brzycki</th>
+<th class="py-3 px-4">1RM Epley</th>
+<th class="py-3 px-4">Tipo de Marca</th>
+<th class="py-3 px-4 text-right">Estatus</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-mono text-xs text-on-surface">
+<!-- Row 1: ALL TIME PEAK -->
+<tr class="bg-primary/5 hover:bg-primary/10 transition-colors">
+<td class="py-3 px-4 font-body text-xs text-on-surface font-medium">14 Octubre, 2024</td>
+<td class="py-3 px-4 font-bold text-on-surface">120.0 kg</td>
+<td class="py-3 px-4">3 reps</td>
+<td class="py-3 px-4 text-primary font-semibold">9.5</td>
+<td class="py-3 px-4 text-primary font-bold">130.8 kg</td>
+<td class="py-3 px-4 text-on-surface">132.0 kg</td>
+<td class="py-3 px-4">
+<span class="px-2 py-0.5 rounded bg-primary text-on-primary font-mono text-[10px] font-extrabold tracking-wider shadow-sm">PR MÁXIMO</span>
+</td>
+<td class="py-3 px-4 text-right">
+<span class="material-symbols-outlined text-primary text-[18px] align-middle">verified</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-3 px-4 font-body text-xs text-on-surface-variant">02 Octubre, 2024</td>
+<td class="py-3 px-4 font-bold text-on-surface">115.0 kg</td>
+<td class="py-3 px-4">5 reps</td>
+<td class="py-3 px-4 text-primary font-semibold">9.0</td>
+<td class="py-3 px-4 text-primary font-bold">129.4 kg</td>
+<td class="py-3 px-4 text-on-surface">134.1 kg</td>
+<td class="py-3 px-4">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline text-primary font-mono text-[10px] font-semibold">PR 5-REP</span>
+</td>
+<td class="py-3 px-4 text-right">
+<span class="material-symbols-outlined text-primary text-[18px] align-middle">verified</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-3 px-4 font-body text-xs text-on-surface-variant">18 Septiembre, 2024</td>
+<td class="py-3 px-4 font-bold text-on-surface">110.0 kg</td>
+<td class="py-3 px-4">6 reps</td>
+<td class="py-3 px-4 text-on-surface-variant">8.5</td>
+<td class="py-3 px-4 text-on-surface">127.8 kg</td>
+<td class="py-3 px-4 text-on-surface">132.0 kg</td>
+<td class="py-3 px-4">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline-variant text-on-surface-variant font-mono text-[10px]">VOL HIT</span>
+</td>
+<td class="py-3 px-4 text-right">
+<span class="material-symbols-outlined text-primary text-[18px] align-middle">verified</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-3 px-4 font-body text-xs text-on-surface-variant">04 Septiembre, 2024</td>
+<td class="py-3 px-4 font-bold text-on-surface">122.5 kg</td>
+<td class="py-3 px-4">1 rep</td>
+<td class="py-3 px-4 text-on-surface-variant">9.0</td>
+<td class="py-3 px-4 text-on-surface">122.5 kg</td>
+<td class="py-3 px-4 text-on-surface">122.5 kg</td>
+<td class="py-3 px-4">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline-variant text-on-surface-variant font-mono text-[10px]">SINGLE COMP</span>
+</td>
+<td class="py-3 px-4 text-right">
+<span class="material-symbols-outlined text-primary text-[18px] align-middle">verified</span>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="py-3 px-4 font-body text-xs text-on-surface-variant">21 Agosto, 2024</td>
+<td class="py-3 px-4 font-bold text-on-surface">105.0 kg</td>
+<td class="py-3 px-4">8 reps</td>
+<td class="py-3 px-4 text-on-surface-variant">8.0</td>
+<td class="py-3 px-4 text-on-surface">126.9 kg</td>
+<td class="py-3 px-4 text-on-surface">133.0 kg</td>
+<td class="py-3 px-4">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest border border-outline text-primary font-mono text-[10px] font-semibold">PR 8-REP</span>
+</td>
+<td class="py-3 px-4 text-right">
+<span class="material-symbols-outlined text-primary text-[18px] align-middle">verified</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Export Actions -->
+<div class="px-4 py-2.5 bg-surface-container-lowest border-t border-outline flex items-center justify-between">
+<span class="font-mono text-[11px] text-on-surface-variant">Mostrando 5 de 46 registros calculados</span>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 rounded-lg bg-surface-container-high hover:bg-surface-bright border border-outline text-on-surface font-mono text-xs transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">file_download</span> Exportar CSV
+</button>
+<button class="px-3 py-1 rounded-lg bg-surface-container-high hover:bg-surface-bright border border-outline text-on-surface font-mono text-xs transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">visibility</span> Ver Histórico Completo
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Inline Interaction for Tab switching -->
+<script>
+  (function() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        if (this.parentElement && this.parentElement.classList.contains('bg-surface-container-lowest')) {
+          const siblings = this.parentElement.querySelectorAll('button');
+          siblings.forEach(s => {
+            s.className = 'px-2.5 py-1 rounded-md font-mono text-[11px] text-on-surface-variant hover:text-on-surface transition-colors';
+          });
+          this.className = 'px-2.5 py-1 rounded-md font-mono text-[11px] bg-primary text-on-primary font-bold shadow-sm';
+        }
+      });
+    });
+  })();
+</script></main></div>
+</body></html>
