@@ -28,3 +28,18 @@ input, select { height: 38px; padding: 0 11px; } textarea { min-height: 72px; pa
 .progress-controls { align-items: end; justify-content: space-between; }.progress-controls label, .progress-controls > div > span { display: block; margin-bottom: 6px; color: #a1a1aa; font-size: 9px; letter-spacing: .08em; }.progress-controls select { display: block; min-width: 300px; }.period-tabs { display: flex; gap: 2px; padding: 3px; background: #09090b; border: 1px solid #292932; border-radius: 7px; }.period-tabs button { padding: 6px 9px; color: #a1a1aa; background: transparent; border: 0; border-radius: 4px; font: 10px "Geist Mono Variable", monospace; }.period-tabs button.selected { color: #170b2b; background: #a78bfa; font-weight: 700; }.chart-card { padding: 19px; margin-bottom: 18px; }.chart-wrap { height: 290px; padding: 14px; background: #0c0c0f; border: 1px solid #25252d; border-radius: 7px; }
 .empty-state, .loading { display: grid; place-items: center; min-height: 110px; padding: 20px; color: #a1a1aa; background: #121216; border: 1px dashed #3a3a46; border-radius: 9px; font-size: 12px; }.loading { gap: 9px; border: 0; background: transparent; }.spin { animation: spin 1s linear infinite; color: #a78bfa; }.toast { position: fixed; right: 28px; bottom: 28px; z-index: 30; display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid #353542; border-radius: 7px; background: #1b1b22; box-shadow: 0 16px 36px #0008; font-size: 12px; }.toast-success { color: #bbf7d0; border-color: #065f46; }.toast-error { color: #fecaca; border-color: #7f1d1d; }.modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: #000a; }.dialog { width: 410px; padding: 20px; background: #17171d; border: 1px solid #464653; border-radius: 10px; box-shadow: 0 25px 80px #000b; }.dialog h2 { margin: 0; font-size: 17px; }.dialog p { color: #a1a1aa; font-size: 13px; line-height: 1.5; }.dialog label { display: grid; gap: 6px; margin-top: 15px; color: #a1a1aa; font: 10px "Geist Mono Variable", monospace; }.dialog label input, .dialog label textarea { margin-top: 1px; }.dialog-head, .dialog-actions { display: flex; align-items: center; justify-content: space-between; }.dialog-actions { justify-content: end; gap: 8px; margin-top: 18px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Campos explícitos para definir el objetivo de un ejercicio en una rutina. */
+.add-routine-exercise {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) 78px 110px 110px auto;
+  align-items: end;
+}
+.routine-field { display: grid; gap: 5px; }
+.routine-field > span {
+  color: #a1a1aa;
+  font: 9px "Geist Mono Variable", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.routine-field input, .routine-field select { width: 100%; }
