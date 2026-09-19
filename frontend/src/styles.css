@@ -43,3 +43,29 @@ input, select { height: 38px; padding: 0 11px; } textarea { min-height: 72px; pa
   text-transform: uppercase;
 }
 .routine-field input, .routine-field select { width: 100%; }
+
+.exercise-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 8px;
+  color: #d4d4d8;
+  background: #1b1b22;
+  border: 1px solid #30303a;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.exercise-chip > span { padding: 0; border: 0; background: transparent; }
+.exercise-chip small { margin-left: 6px; color: #8b829f; }
+.chip-delete {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: #71717a;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+.chip-delete:hover { color: #fca5a5; background: #7f1d1d33; }
+.chip-delete:focus-visible { outline: 2px solid #a78bfa; outline-offset: 1px; }

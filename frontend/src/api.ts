@@ -16,6 +16,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   exercises: () => request<Exercise[]>("/api/exercises"),
   createExercise: (name: string, muscle_group: string) => request<Exercise>("/api/exercises", { method: "POST", body: JSON.stringify({ name, muscle_group }) }),
+  deleteExercise: (id: number) => request<void>(`/api/exercises/${id}`, { method: "DELETE" }),
   routines: () => request<Routine[]>("/api/routines"),
   createRoutine: (name: string, description: string) => request<Routine>("/api/routines", { method: "POST", body: JSON.stringify({ name, description }) }),
   deleteRoutine: (id: number) => request<void>(`/api/routines/${id}`, { method: "DELETE" }),

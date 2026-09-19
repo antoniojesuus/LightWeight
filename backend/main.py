@@ -132,7 +132,7 @@ def list_exercises(db: Session = Depends(get_db)):
 
 @app.post("/api/exercises", response_model=schemas.ExerciseOut, status_code=201)
 def create_exercise(data: schemas.ExerciseCreate, db: Session = Depends(get_db)):
-    exists = db.query(models.Exercise).filter(models.Exercise.name == data.name.strip()).first()
+    exists = db.query(models.Exercise).filter(models.Exercise.name.ilike(data.name.strip())).first()
     if exists:
         raise HTTPException(400, "Ya existe un ejercicio con ese nombre")
     ex = models.Exercise(name=data.name.strip(), muscle_group=data.muscle_group.strip(), notes=data.notes)
@@ -147,6 +147,13 @@ def delete_exercise(exercise_id: int, db: Session = Depends(get_db)):
     ex = db.get(models.Exercise, exercise_id)
     if not ex:
         raise HTTPException(404, "Ejercicio no encontrado")
+    in_routine = db.query(models.RoutineExercise).filter_by(exercise_id=exercise_id).first()
+    in_session = db.query(models.SessionExercise).filter_by(exercise_id=exercise_id).first()
+    if in_routine or in_session:
+        raise HTTPException(
+            409,
+            "No se puede eliminar un ejercicio que ya aparece en rutinas o sesiones",
+        )
     db.delete(ex)
     db.commit()
     return None
