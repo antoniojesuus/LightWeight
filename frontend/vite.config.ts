@@ -18,9 +18,10 @@ export default defineConfig({
         display: "standalone",
         lang: "es",
         icons: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+          { src: "/icons/obsidian-mark.svg", sizes: "any", type: "image/svg+xml" },
+          { src: "/icons/obsidian-mark-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/obsidian-mark-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/icons/obsidian-mark-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
         ]
       },
       workbox: {
