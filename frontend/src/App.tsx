@@ -87,6 +87,7 @@ export function App() {
 
   return <div className="app-shell">
     <Sidebar route={route} navigate={navigate} online={online} />
+    <BottomNav route={route} navigate={navigate} />
     <main className="main-area">
       <Topbar metrics={metrics} />
       <div className="page-content">
@@ -109,6 +110,18 @@ function Sidebar({ route, navigate, online }: { route: Route; navigate: (route: 
     <div className="sidebar-footer"><span>MOTOR LOCAL</span><b>SQLite + API</b><span>SINCRONIZACIÓN</span><b>{online ? "Conectada" : "Sin red"}</b></div>
   </aside>;
 }
+
+function BottomNav({ route, navigate }: { route: Route; navigate: (route: Route) => void }) {
+  return <nav className="bottom-nav">
+    {routes.map(({ id, label, icon: Icon }) => (
+      <button key={id} className={route === id ? "bottom-nav-item active" : "bottom-nav-item"} onClick={() => navigate(id)}>
+        <Icon size={22} />
+        <span>{label.split(" ")[0]}</span>
+      </button>
+    ))}
+  </nav>;
+}
+
 
 function Topbar({ metrics }: { metrics: { volume: number; sets: number } }) {
   return <header className="topbar"><div className="session-label">SESIÓN DE FUERZA <span>v2.0-OBSIDIAN</span></div><div className="header-metrics"><Metric label="VOLUMEN TOTAL (SEM)" value={`${formatKg(metrics.volume)} kg`} /><Metric label="SERIES COMPLETADAS" value={String(metrics.sets)} accent /></div><div className="athlete">Atleta Principal <span>Seguimiento local</span></div></header>;
