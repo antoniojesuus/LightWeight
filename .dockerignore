@@ -1,0 +1,24 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.db
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+.pnpm-store/
+
+# Local workspace & temp
+.opencode/
+.vscode/
+.idea/
+*.log
