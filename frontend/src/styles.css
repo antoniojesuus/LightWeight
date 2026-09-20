@@ -112,14 +112,66 @@ input, select { height: 38px; padding: 0 11px; } textarea { min-height: 72px; pa
 
 /* ── Ajustes adicionales de contenido en móvil ── */
 @media (max-width: 767px) {
-  .page-content { padding: 16px; }
-  .page-title h1 { font-size: 22px; }
-  .page-title { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .page-content { padding: 14px; }
+  .panel { padding: 16px; }
+  .page-title { flex-direction: column; align-items: stretch; gap: 10px; }
+  .page-title > div { width: 100%; min-width: 0; }
+  .page-title h1 { font-size: 22px; overflow-wrap: break-word; }
+  .page-title p { overflow-wrap: break-word; }
 
-  /* Entrenar: controles de inicio en columna */
-  .start-panel { flex-direction: column; align-items: flex-start; }
-  .start-controls { grid-template-columns: 1fr 1fr; }
-  .start-controls button { grid-column: span 1; }
+  /* Entrenar: nueva sesión adaptada a móvil */
+  .start-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+  .start-panel > div:first-child {
+    width: 100%;
+    min-width: 0;
+  }
+  .start-panel h2 {
+    font-size: 18px;
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .start-panel p {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .start-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+  .start-controls input,
+  .start-controls select {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .start-controls button {
+    grid-column: span 1;
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  /* Sesión activa */
+  .active-session { padding: 16px; }
+  .active-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .active-header > div { width: 100%; min-width: 0; }
+  .active-header h2 { font-size: 19px; overflow-wrap: break-word; }
+  .active-header p { overflow-wrap: break-word; }
+  .set-form { flex-wrap: wrap; }
+  .set-form input { flex: 1; min-width: 70px; }
+  .set-form button { flex: 1; }
+  .add-row { flex-direction: column; }
+  .add-row select, .add-row button { width: 100%; }
 
   /* Split grid (catálogo de ejercicios) en columna */
   .split-grid { grid-template-columns: 1fr; }
