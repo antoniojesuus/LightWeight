@@ -26,6 +26,11 @@ class RoutineCreate(BaseModel):
     description: str = ""
 
 
+class RoutineUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+
+
 class RoutineExerciseCreate(BaseModel):
     exercise_id: int
     position: int = 0
@@ -33,6 +38,14 @@ class RoutineExerciseCreate(BaseModel):
     target_reps: int = 10
     target_weight: float = 0.0
     notes: str = ""
+
+
+class RoutineExerciseUpdate(BaseModel):
+    position: int | None = None
+    target_sets: int | None = None
+    target_reps: int | None = None
+    target_weight: float | None = None
+    notes: str | None = None
 
 
 class RoutineExerciseOut(BaseModel):

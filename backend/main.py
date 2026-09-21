@@ -193,11 +193,25 @@ def get_routine(routine_id: int, db: Session = Depends(get_db)):
     return routine_out(r)
 
 
+@app.patch("/api/routines/{routine_id}", response_model=schemas.RoutineOut)
+def update_routine(routine_id: int, data: schemas.RoutineUpdate, db: Session = Depends(get_db)):
+    r = db.get(models.Routine, routine_id)
+    if not r:
+        raise HTTPException(404, "Rutina no encontrada")
+    if data.name is not None and data.name.strip():
+        r.name = data.name.strip()
+    if data.description is not None:
+        r.description = data.description
+    db.commit()
+    return get_routine(routine_id, db)
+
+
 @app.delete("/api/routines/{routine_id}", status_code=204)
 def delete_routine(routine_id: int, db: Session = Depends(get_db)):
     r = db.get(models.Routine, routine_id)
     if not r:
         raise HTTPException(404, "Rutina no encontrada")
+    db.query(models.WorkoutSession).filter(models.WorkoutSession.routine_id == routine_id).update({"routine_id": None})
     db.delete(r)
     db.commit()
     return None
@@ -223,6 +237,31 @@ def add_exercise_to_routine(routine_id: int, data: schemas.RoutineExerciseCreate
     )
     db.commit()
     db.refresh(r)
+    return get_routine(routine_id, db)
+
+
+@app.patch("/api/routines/{routine_id}/exercises/{link_id}", response_model=schemas.RoutineOut)
+def update_routine_exercise(
+    routine_id: int, link_id: int, data: schemas.RoutineExerciseUpdate, db: Session = Depends(get_db)
+):
+    link = (
+        db.query(models.RoutineExercise)
+        .filter(models.RoutineExercise.id == link_id, models.RoutineExercise.routine_id == routine_id)
+        .first()
+    )
+    if not link:
+        raise HTTPException(404, "Ejercicio no encontrado en la rutina")
+    if data.target_sets is not None:
+        link.target_sets = data.target_sets
+    if data.target_reps is not None:
+        link.target_reps = data.target_reps
+    if data.target_weight is not None:
+        link.target_weight = data.target_weight
+    if data.notes is not None:
+        link.notes = data.notes
+    if data.position is not None:
+        link.position = data.position
+    db.commit()
     return get_routine(routine_id, db)
 
 

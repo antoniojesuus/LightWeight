@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, BarChart3, BookOpen, Check, ChevronDown, CirclePlus, ClipboardList,
-  Dumbbell, FileText, LoaderCircle, Menu, NotebookPen, Plus, Search, Trash2, X
+  Dumbbell, FileText, LoaderCircle, Menu, NotebookPen, Pencil, Plus, Search, Trash2, X
 } from "lucide-react";
 import { api } from "./api";
 import { filterProgress, formatDate, formatKg, weeklyMetrics } from "./lib";
@@ -67,6 +67,14 @@ export function App() {
   const createRoutine = async (name: string, description: string) => {
     const routine = await api.createRoutine(name, description); await reload(); setSelectedRoutineId(routine.id); notify("Rutina creada", "success");
   };
+  const updateRoutine = async (id: number, name: string, description: string) => {
+    await api.updateRoutine(id, { name, description }); await reload(); notify("Rutina actualizada", "success");
+  };
+  const deleteRoutine = async (id: number) => {
+    await api.deleteRoutine(id); await reload();
+    setSelectedRoutineId((current) => (current === id ? null : current));
+    notify("Rutina eliminada", "success"); haptic(20);
+  };
   const startSession = async (data: { name?: string; routine_id?: number }) => {
     const session = await api.createSession(data); setActiveSession(session); await reload(); navigate("entrenar"); notify("Sesión iniciada", "success"); haptic([10, 30, 10]);
   };
@@ -92,7 +100,7 @@ export function App() {
       <Topbar metrics={metrics} />
       <div className="page-content">
         {loading ? <Loading /> : route === "entrenar" ? <TrainView exercises={exercises} routines={routines} activeSession={activeSession} onStart={startSession} onCreateExercise={createExercise} onDeleteExercise={deleteExercise} onRefresh={reload} onSetActive={setActiveSession} onRefreshSession={refreshSession} onAddSet={addSet} onDeleteSet={deleteSet} notify={notify} ask={ask} /> : null}
-        {!loading && route === "rutinas" ? <RoutinesView exercises={exercises} routines={routines} selected={selectedRoutine} onSelect={setSelectedRoutineId} onCreate={createRoutine} onReload={reload} onStart={startSession} ask={ask} notify={notify} /> : null}
+        {!loading && route === "rutinas" ? <RoutinesView exercises={exercises} routines={routines} selected={selectedRoutine} onSelect={setSelectedRoutineId} onCreate={createRoutine} onUpdate={updateRoutine} onDelete={deleteRoutine} onReload={reload} onStart={startSession} ask={ask} notify={notify} /> : null}
         {!loading && route === "historial" ? <HistoryView sessions={sessions} routines={routines} onReload={reload} ask={ask} /> : null}
         {!loading && route === "progreso" ? <ProgressView exercises={exercises} /> : null}
       </div>
@@ -160,21 +168,74 @@ function SessionExerciseCard({ exercise, onRefresh, sessionId, onAddSet, onDelet
   return <article className="exercise-card"><div className="exercise-card-head"><div><h3>{exercise.exercise_name}</h3><span className="mono">{exercise.sets.length} SERIES · {formatKg(exercise.sets.reduce((sum, set) => sum + set.volume, 0))} KG VOL.</span></div><button className="icon-button" aria-label="Quitar ejercicio" onClick={() => ask("¿Quitar ejercicio?", "Se eliminarán también sus series de esta sesión.", async () => { await api.deleteSessionExercise(exercise.id); await onRefresh(sessionId); })}><X size={17} /></button></div><div className="exercise-notes"><input value={notes} onChange={(event) => setNotes(event.target.value)} onBlur={() => void save()} placeholder="Nota técnica del ejercicio…" /></div><table><thead><tr><th>SET</th><th>CARGA</th><th>REPS</th><th>VOLUMEN</th><th /></tr></thead><tbody>{exercise.sets.map((set) => <tr key={set.id} className={set.id < 0 ? "pending" : ""}><td>{set.set_number}</td><td>{formatKg(set.weight)} kg</td><td>{set.reps}</td><td>{formatKg(set.volume)} kg</td><td><button className="row-action" disabled={set.id < 0} onClick={() => void onDeleteSet(exercise, set.id)}><Trash2 size={14} /></button></td></tr>)}</tbody></table><div className="set-form"><input type="number" min="0" step="0.5" value={weight} onChange={(event) => setWeight(event.target.value)} placeholder="kg" /><input type="number" min="0" value={reps} onChange={(event) => setReps(event.target.value)} placeholder="reps" /><button className="button primary" onClick={() => { const kg = Number(weight); const count = Number(reps); if (Number.isNaN(kg) || Number.isNaN(count)) return; setWeight(""); setReps(""); void onAddSet(exercise, kg, count); }}><Plus size={15} />Serie</button></div></article>;
 }
 
-function RoutinesView({ exercises, routines, selected, onSelect, onCreate, onReload, onStart, ask, notify }: { exercises: Exercise[]; routines: Routine[]; selected: Routine | null; onSelect: (id: number) => void; onCreate: (name: string, description: string) => Promise<void>; onReload: () => Promise<void>; onStart: (data: { routine_id?: number }) => Promise<void>; ask: (title: string, detail: string, action: () => Promise<void>) => void; notify: (text: string, kind?: ToastKind) => void }) {
-  const [creating, setCreating] = useState(false); const [exerciseId, setExerciseId] = useState(""); const [sets, setSets] = useState("3"); const [reps, setReps] = useState("10"); const [weight, setWeight] = useState("0"); const [query, setQuery] = useState("");
+function RoutinesView({ exercises, routines, selected, onSelect, onCreate, onUpdate, onDelete, onReload, onStart, ask, notify }: {
+  exercises: Exercise[]; routines: Routine[]; selected: Routine | null; onSelect: (id: number) => void;
+  onCreate: (name: string, description: string) => Promise<void>; onUpdate: (id: number, name: string, description: string) => Promise<void>;
+  onDelete: (id: number) => Promise<void>; onReload: () => Promise<void>; onStart: (data: { routine_id?: number }) => Promise<void>;
+  ask: (title: string, detail: string, action: () => Promise<void>) => void; notify: (text: string, kind?: ToastKind) => void;
+}) {
+  const [modalState, setModalState] = useState<{ mode: "create" } | { mode: "edit"; routine: Routine } | null>(null);
+  const [exerciseId, setExerciseId] = useState(""); const [sets, setSets] = useState("3"); const [reps, setReps] = useState("10"); const [weight, setWeight] = useState("0"); const [query, setQuery] = useState("");
+  const [editingTarget, setEditingTarget] = useState<{ id: number; sets: string; reps: string; weight: string } | null>(null);
+
   const visibleExercises = exercises.filter((exercise) => `${exercise.name} ${exercise.muscle_group}`.toLowerCase().includes(query.toLowerCase()));
-  const addExercise = async () => { if (!selected || !exerciseId) return; try { await api.addRoutineExercise(selected.id, { exercise_id: Number(exerciseId), target_sets: Number(sets) || 3, target_reps: Number(reps) || 10, target_weight: Number(weight) || 0 }); await onReload(); notify("Ejercicio añadido a la rutina", "success"); } catch { notify("No se pudo añadir el ejercicio", "error"); } };
-  return <PageTitle eyebrow="MÓDULO DE PLANIFICACIÓN" title="Gestión de rutinas y ejercicios" description="Define plantillas reutilizables para tus sesiones de fuerza." actions={<button className="button primary" onClick={() => setCreating(true)}><Plus size={16} />Nueva rutina</button>}>
-    {creating && <RoutineForm onClose={() => setCreating(false)} onCreate={async (name, description) => { await onCreate(name, description); setCreating(false); }} />}
-    <section><div className="list-label">RUTINAS ACTIVAS</div><div className="routine-grid">{routines.map((routine) => <button className={selected?.id === routine.id ? "routine-tile selected" : "routine-tile"} onClick={() => onSelect(routine.id)} key={routine.id}><span className="mono">{routine.exercises.length} MOVS</span><h3>{routine.name}</h3><p>{routine.description || "Sin descripción"}</p><b>{routine.exercises.reduce((total, exercise) => total + exercise.target_sets, 0)} series objetivo</b></button>)}{!routines.length && <div className="empty-state">Crea tu primera rutina para empezar.</div>}</div></section>
-    {selected && <div className="routine-layout"><section className="panel routine-detail"><div className="section-heading"><div><span className="eyebrow">RUTINA SELECCIONADA</span><h2>{selected.name}</h2><p>{selected.description || "Sin notas de preparación."}</p></div><div className="action-cluster"><button className="button primary" onClick={() => void onStart({ routine_id: selected.id })}><Dumbbell size={16} />Entrenar</button><button className="icon-button danger" aria-label="Eliminar rutina" onClick={() => ask("¿Eliminar rutina?", "Se borrará la plantilla y sus ejercicios planificados.", async () => { await api.deleteRoutine(selected.id); await onReload(); })}><Trash2 size={16} /></button></div></div><div className="routine-summary"><Metric label="EJERCICIOS" value={String(selected.exercises.length)} /><Metric label="TOTAL SERIES" value={String(selected.exercises.reduce((total, exercise) => total + exercise.target_sets, 0))} /><Metric label="CARGA OBJETIVO" value={`${formatKg(selected.exercises.reduce((total, exercise) => total + exercise.target_sets * exercise.target_reps * exercise.target_weight, 0))} kg`} /></div><div className="routine-exercises">{selected.exercises.map((exercise, index) => <article className="planned-exercise" key={exercise.id}><div className="position">{index + 1}</div><div className="planned-main"><h3>{exercise.exercise_name}</h3><span>{exercise.muscle_group || "General"}</span></div><div className="planned-data"><span>SERIES<b>{exercise.target_sets}</b></span><span>REPS<b>{exercise.target_reps}</b></span><span>CARGA<b>{formatKg(exercise.target_weight)} kg</b></span></div><button className="row-action" aria-label="Quitar de rutina" onClick={() => void api.removeRoutineExercise(selected.id, exercise.id).then(onReload).catch(() => notify("No se pudo quitar el ejercicio", "error"))}><X size={16} /></button></article>)}</div><div className="add-routine-exercise"><label className="routine-field routine-exercise-picker"><span>Ejercicio</span><select value={exerciseId} onChange={(event) => setExerciseId(event.target.value)}><option value="">Selecciona un ejercicio</option>{exercises.map((exercise) => <option value={exercise.id} key={exercise.id}>{exercise.name}</option>)}</select></label><label className="routine-field"><span>Series</span><input type="number" min="1" value={sets} onChange={(event) => setSets(event.target.value)} aria-label="Series objetivo" /></label><label className="routine-field"><span>Repeticiones</span><input type="number" min="1" value={reps} onChange={(event) => setReps(event.target.value)} aria-label="Repeticiones objetivo" /></label><label className="routine-field"><span>Carga (kg)</span><input type="number" min="0" step=".5" value={weight} onChange={(event) => setWeight(event.target.value)} aria-label="Carga objetivo en kilogramos" /></label><button className="button secondary" onClick={() => void addExercise()}><CirclePlus size={16} />Añadir</button></div></section>
+  const addExercise = async () => {
+    if (!selected || !exerciseId) return;
+    try {
+      await api.addRoutineExercise(selected.id, { exercise_id: Number(exerciseId), target_sets: Number(sets) || 3, target_reps: Number(reps) || 10, target_weight: Number(weight) || 0 });
+      await onReload(); notify("Ejercicio añadido a la rutina", "success");
+    } catch { notify("No se pudo añadir el ejercicio", "error"); }
+  };
+
+  const saveTarget = async (linkId: number) => {
+    if (!selected || !editingTarget) return;
+    try {
+      await api.updateRoutineExercise(selected.id, linkId, {
+        target_sets: Number(editingTarget.sets) || 1, target_reps: Number(editingTarget.reps) || 1, target_weight: Number(editingTarget.weight) || 0
+      });
+      await onReload(); setEditingTarget(null); notify("Objetivo actualizado", "success");
+    } catch { notify("No se pudo actualizar el objetivo", "error"); }
+  };
+
+  const confirmDeleteRoutine = (routine: Routine) => {
+    ask("¿Eliminar rutina?", `Se borrará la plantilla “${routine.name}” y sus ejercicios planificados. Las sesiones históricas ya registradas no se perderán.`, async () => {
+      await onDelete(routine.id);
+    });
+  };
+
+  return <PageTitle eyebrow="MÓDULO DE PLANIFICACIÓN" title="Gestión de rutinas y ejercicios" description="Define plantillas reutilizables para tus sesiones de fuerza." actions={<button className="button primary" onClick={() => setModalState({ mode: "create" })}><Plus size={16} />Nueva rutina</button>}>
+    {modalState?.mode === "create" && <RoutineForm title="Nueva rutina" submitLabel="Crear rutina" onClose={() => setModalState(null)} onSubmit={async (name, description) => { await onCreate(name, description); setModalState(null); }} />}
+    {modalState?.mode === "edit" && <RoutineForm title="Modificar rutina" submitLabel="Guardar cambios" initialName={modalState.routine.name} initialDescription={modalState.routine.description} onClose={() => setModalState(null)} onSubmit={async (name, description) => { await onUpdate(modalState.routine.id, name, description); setModalState(null); }} />}
+
+    <section><div className="list-label">RUTINAS ACTIVAS</div><div className="routine-grid">{routines.map((routine) => <div className={selected?.id === routine.id ? "routine-tile selected" : "routine-tile"} onClick={() => onSelect(routine.id)} key={routine.id} role="button" tabIndex={0}><div className="routine-tile-top"><span className="mono">{routine.exercises.length} MOVS</span><div className="routine-tile-actions" onClick={(e) => e.stopPropagation()}><button className="icon-button-sm" title="Modificar rutina" aria-label={`Modificar ${routine.name}`} onClick={() => { onSelect(routine.id); setModalState({ mode: "edit", routine }); }}><Pencil size={13} /></button><button className="icon-button-sm danger" title="Eliminar rutina" aria-label={`Eliminar ${routine.name}`} onClick={() => confirmDeleteRoutine(routine)}><Trash2 size={13} /></button></div></div><h3>{routine.name}</h3><p>{routine.description || "Sin descripción"}</p><b>{routine.exercises.reduce((total, exercise) => total + exercise.target_sets, 0)} series objetivo</b></div>)}{!routines.length && <div className="empty-state">Crea tu primera rutina para empezar.</div>}</div></section>
+    {selected && <div className="routine-layout"><section className="panel routine-detail"><div className="section-heading"><div><span className="eyebrow">RUTINA SELECCIONADA</span><h2>{selected.name}</h2><p>{selected.description || "Sin notas de preparación."}</p></div><div className="action-cluster"><button className="button primary" onClick={() => void onStart({ routine_id: selected.id })}><Dumbbell size={16} />Entrenar</button><button className="button secondary" onClick={() => setModalState({ mode: "edit", routine: selected })}><Pencil size={15} />Modificar</button><button className="button danger-button" aria-label="Eliminar rutina" onClick={() => confirmDeleteRoutine(selected)}><Trash2 size={15} />Eliminar</button></div></div><div className="routine-summary"><Metric label="EJERCICIOS" value={String(selected.exercises.length)} /><Metric label="TOTAL SERIES" value={String(selected.exercises.reduce((total, exercise) => total + exercise.target_sets, 0))} /><Metric label="CARGA OBJETIVO" value={`${formatKg(selected.exercises.reduce((total, exercise) => total + exercise.target_sets * exercise.target_reps * exercise.target_weight, 0))} kg`} /></div>
+      <div className="routine-exercises">{selected.exercises.map((exercise, index) => {
+        const isEditing = editingTarget?.id === exercise.id;
+        return <article className="planned-exercise" key={exercise.id}><div className="position">{index + 1}</div><div className="planned-main"><h3>{exercise.exercise_name}</h3><span>{exercise.muscle_group || "General"}</span></div>
+          {isEditing ? <div className="planned-edit-form">
+            <label><span>Series</span><input type="number" min="1" value={editingTarget.sets} onChange={(e) => setEditingTarget({ ...editingTarget, sets: e.target.value })} aria-label="Series objetivo" /></label>
+            <label><span>Reps</span><input type="number" min="1" value={editingTarget.reps} onChange={(e) => setEditingTarget({ ...editingTarget, reps: e.target.value })} aria-label="Repeticiones objetivo" /></label>
+            <label><span>Carga kg</span><input type="number" min="0" step="0.5" value={editingTarget.weight} onChange={(e) => setEditingTarget({ ...editingTarget, weight: e.target.value })} aria-label="Carga objetivo en kilogramos" /></label>
+            <div className="planned-edit-actions"><button className="icon-button-sm primary" title="Guardar objetivo" onClick={() => void saveTarget(exercise.id)}><Check size={14} /></button><button className="icon-button-sm" title="Cancelar" onClick={() => setEditingTarget(null)}><X size={14} /></button></div>
+          </div> : <>
+            <div className="planned-data"><span>SERIES<b>{exercise.target_sets}</b></span><span>REPS<b>{exercise.target_reps}</b></span><span>CARGA<b>{formatKg(exercise.target_weight)} kg</b></span></div>
+            <div className="planned-actions">
+              <button className="row-action" aria-label="Modificar objetivo" title="Modificar objetivo" onClick={() => setEditingTarget({ id: exercise.id, sets: String(exercise.target_sets), reps: String(exercise.target_reps), weight: String(exercise.target_weight) })}><Pencil size={14} /></button>
+              <button className="row-action" aria-label="Quitar de rutina" title="Quitar de rutina" onClick={() => void api.removeRoutineExercise(selected.id, exercise.id).then(onReload).catch(() => notify("No se pudo quitar el ejercicio", "error"))}><X size={16} /></button>
+            </div>
+          </>}
+        </article>;
+      })}</div>
+      <div className="add-routine-exercise"><label className="routine-field routine-exercise-picker"><span>Ejercicio</span><select value={exerciseId} onChange={(event) => setExerciseId(event.target.value)}><option value="">Selecciona un ejercicio</option>{exercises.map((exercise) => <option value={exercise.id} key={exercise.id}>{exercise.name}</option>)}</select></label><label className="routine-field"><span>Series</span><input type="number" min="1" value={sets} onChange={(event) => setSets(event.target.value)} aria-label="Series objetivo" /></label><label className="routine-field"><span>Repeticiones</span><input type="number" min="1" value={reps} onChange={(event) => setReps(event.target.value)} aria-label="Repeticiones objetivo" /></label><label className="routine-field"><span>Carga (kg)</span><input type="number" min="0" step=".5" value={weight} onChange={(event) => setWeight(event.target.value)} aria-label="Carga objetivo en kilogramos" /></label><button className="button secondary" onClick={() => void addExercise()}><CirclePlus size={16} />Añadir</button></div></section>
       <aside className="panel exercise-library"><div className="section-heading"><div><h2>Biblioteca de ejercicios</h2><p>{exercises.length} disponibles</p></div></div><label className="search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ejercicio o músculo…" /></label><div className="library-list">{visibleExercises.map((exercise) => <button key={exercise.id} onClick={() => setExerciseId(String(exercise.id))} className={exerciseId === String(exercise.id) ? "library-item chosen" : "library-item"}><Dumbbell size={16} /><span><b>{exercise.name}</b><small>{exercise.muscle_group || "General"}</small></span><Plus size={16} /></button>)}</div></aside></div>}
   </PageTitle>;
 }
 
-function RoutineForm({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string, description: string) => Promise<void> }) {
-  const [name, setName] = useState(""); const [description, setDescription] = useState("");
-  return <div className="modal-backdrop"><form className="dialog" onSubmit={(event) => { event.preventDefault(); if (name.trim()) void onCreate(name.trim(), description.trim()); }}><div className="dialog-head"><h2>Nueva rutina</h2><button type="button" className="icon-button" onClick={onClose}><X size={17} /></button></div><label>Nombre<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Torso hipertrofia" /></label><label>Descripción<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Objetivo de la rutina" /></label><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancelar</button><button className="button primary">Crear rutina</button></div></form></div>;
+function RoutineForm({ title, submitLabel, initialName = "", initialDescription = "", onClose, onSubmit }: {
+  title: string; submitLabel: string; initialName?: string; initialDescription?: string; onClose: () => void; onSubmit: (name: string, description: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(initialName); const [description, setDescription] = useState(initialDescription);
+  return <div className="modal-backdrop"><form className="dialog" onSubmit={(event) => { event.preventDefault(); if (name.trim()) void onSubmit(name.trim(), description.trim()); }}><div className="dialog-head"><h2>{title}</h2><button type="button" className="icon-button" onClick={onClose}><X size={17} /></button></div><label>Nombre<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Torso hipertrofia" /></label><label>Descripción<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Objetivo de la rutina" /></label><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancelar</button><button className="button primary">{submitLabel}</button></div></form></div>;
 }
 
 function HistoryView({ sessions, routines, onReload, ask }: { sessions: WorkoutSession[]; routines: Routine[]; onReload: () => Promise<void>; ask: (title: string, detail: string, action: () => Promise<void>) => void }) {
