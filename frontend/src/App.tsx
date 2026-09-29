@@ -61,8 +61,8 @@ export function App() {
   const createExercise = async (name: string, muscle: string) => {
     await api.createExercise(name, muscle); await reload(); notify("Ejercicio creado", "success"); haptic([10, 30, 10]);
   };
-  const updateExercisePR = async (id: number, current_weight: number, current_reps: number) => {
-    await api.updateExercise(id, { current_weight, current_reps });
+  const updateExercisePR = async (id: number, current_weight: number, current_reps: number, notes?: string) => {
+    await api.updateExercise(id, { current_weight, current_reps, ...(notes !== undefined ? { notes } : {}) });
     await reload();
     notify("Marca actualizada", "success");
     haptic([10, 30, 10]);
@@ -143,29 +143,43 @@ function Topbar({ metrics }: { metrics: { volume: number; sets: number } }) {
 function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) { return <div className="header-metric"><span>{label}</span><b className={accent ? "accent" : ""}>{value}</b></div>; }
 function Loading() { return <div className="loading"><LoaderCircle className="spin" size={24} />Cargando datos locales…</div>; }
 
+// Muscle group display config
+const MG_ORDER = ["Pecho", "Espalda", "Pierna", "Hombro", "Brazo", "Core", "Cuerpo completo", "Cardio", "Otro", ""];
+const MG_EMOJI: Record<string, string> = {
+  Pecho: "🏋️", Espalda: "🧲", Pierna: "🦵", Hombro: "🧱", Brazo: "💪",
+  Core: "⚡", "Cuerpo completo": "🔄", Cardio: "🏃", Otro: "🔧", "": "📋",
+};
+const MG_LABEL: Record<string, string> = {
+  Pecho: "PECHO", Espalda: "ESPALDA", Pierna: "PIERNAS", Hombro: "HOMBROS", Brazo: "BRAZOS",
+  Core: "CORE", "Cuerpo completo": "CUERPO COMPLETO", Cardio: "CARDIO", Otro: "OTRO", "": "SIN GRUPO",
+};
+
 function PersonalBestsWidget({
   exercises,
   onUpdatePR
 }: {
   exercises: Exercise[];
-  onUpdatePR: (id: number, weight: number, reps: number) => Promise<void>;
+  onUpdatePR: (id: number, weight: number, reps: number, notes?: string) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editWeight, setEditWeight] = useState("");
   const [editReps, setEditReps] = useState("");
+  const [editNotes, setEditNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const startEdit = (ex: Exercise) => {
     setEditingId(ex.id);
     setEditWeight(ex.current_weight > 0 ? String(ex.current_weight) : "");
     setEditReps(ex.current_reps > 0 ? String(ex.current_reps) : "");
+    setEditNotes(ex.notes ?? "");
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditWeight("");
     setEditReps("");
+    setEditNotes("");
   };
 
   const handleSave = async (id: number) => {
@@ -173,7 +187,7 @@ function PersonalBestsWidget({
     const r = parseInt(editReps, 10) || 0;
     setSaving(true);
     try {
-      await onUpdatePR(id, w, r);
+      await onUpdatePR(id, w, r, editNotes);
       setEditingId(null);
     } finally {
       setSaving(false);
@@ -183,6 +197,114 @@ function PersonalBestsWidget({
   const filtered = exercises.filter((ex) =>
     `${ex.name} ${ex.muscle_group}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Group by muscle group in defined order
+  const groups = MG_ORDER.map((key) => ({
+    key,
+    items: filtered.filter((ex) => (ex.muscle_group ?? "") === key),
+  })).filter((g) => g.items.length > 0);
+
+  const renderCard = (ex: Exercise) => {
+    const isEditing = editingId === ex.id;
+    const hasRecord = ex.current_weight > 0 && ex.current_reps > 0;
+    const est1RM = hasRecord ? epley1RM(ex.current_weight, ex.current_reps) : 0;
+
+    return (
+      <article className="pb-card" key={ex.id}>
+        <div className="pb-card-top">
+          <h3 className="pb-card-name">{ex.name}</h3>
+          {!isEditing && (
+            <button
+              className="icon-button-sm"
+              title="Actualizar marca"
+              aria-label={`Editar marca de ${ex.name}`}
+              onClick={() => startEdit(ex)}
+            >
+              <Pencil size={13} />
+            </button>
+          )}
+        </div>
+
+        {isEditing ? (
+          <div className="pb-edit-box">
+            <div className="pb-edit-inputs">
+              <label className="pb-edit-field">
+                <span>PESO</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={editWeight}
+                  onChange={(e) => setEditWeight(e.target.value)}
+                  placeholder="0"
+                  autoFocus
+                />
+              </label>
+              <label className="pb-edit-field">
+                <span>REPS</span>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={editReps}
+                  onChange={(e) => setEditReps(e.target.value)}
+                  placeholder="0"
+                />
+              </label>
+            </div>
+            <label className="pb-edit-field pb-notes-field">
+              <span>NOTAS</span>
+              <input
+                type="text"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="ej: kg/lado, fichas, tempo lento…"
+              />
+            </label>
+            <div className="pb-edit-actions">
+              <button className="button secondary" onClick={cancelEdit} disabled={saving}>
+                Cancelar
+              </button>
+              <button
+                className="button primary"
+                onClick={() => void handleSave(ex.id)}
+                disabled={saving}
+              >
+                <Check size={13} />
+                {saving ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="pb-stats-row">
+            {hasRecord ? (
+              <>
+                <div className="pb-badges">
+                  <div className="pb-badge pb-badge-weight">
+                    <span className="pb-badge-label">PESO</span>
+                    <span className="pb-badge-value">{formatKg(ex.current_weight)} <small>kg</small></span>
+                  </div>
+                  <div className="pb-badge pb-badge-reps">
+                    <span className="pb-badge-label">REPS</span>
+                    <span className="pb-badge-value">{ex.current_reps}</span>
+                  </div>
+                </div>
+                <div className="pb-card-footer">
+                  {ex.notes ? <span className="pb-note">📝 {ex.notes}</span> : null}
+                  {est1RM > 0 && <span className="pb-1rm">1RM ~{formatKg(est1RM)} kg</span>}
+                </div>
+              </>
+            ) : (
+              <div className="pb-no-record">
+                <span className="pb-empty">Sin marca registrada</span>
+                <button className="text-button" onClick={() => startEdit(ex)}>+ Añadir</button>
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    );
+  };
 
   return (
     <section className="pb-widget">
@@ -202,112 +324,28 @@ function PersonalBestsWidget({
         </label>
       </div>
 
-      <div className="pb-grid">
-        {filtered.map((ex) => {
-          const isEditing = editingId === ex.id;
-          const hasRecord = ex.current_weight > 0 && ex.current_reps > 0;
-          const est1RM = hasRecord ? epley1RM(ex.current_weight, ex.current_reps) : 0;
+      {groups.length === 0 && (
+        <div className="empty-state">No hay ejercicios que coincidan con la búsqueda.</div>
+      )}
 
-          return (
-            <article className="pb-card" key={ex.id}>
-              <div className="pb-card-top">
-                <div>
-                  <h3 className="pb-card-name">{ex.name}</h3>
-                  <span className="pb-card-group">{ex.muscle_group || "General"}</span>
-                </div>
-                {!isEditing && (
-                  <button
-                    className="icon-button-sm"
-                    title="Actualizar marca"
-                    aria-label={`Editar marca de ${ex.name}`}
-                    onClick={() => startEdit(ex)}
-                  >
-                    <Pencil size={13} />
-                  </button>
-                )}
-              </div>
-
-              {isEditing ? (
-                <div className="pb-edit-box">
-                  <div className="pb-edit-inputs">
-                    <label className="pb-edit-field">
-                      <span>PESO (KG)</span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        value={editWeight}
-                        onChange={(e) => setEditWeight(e.target.value)}
-                        placeholder="0"
-                        autoFocus
-                      />
-                    </label>
-                    <label className="pb-edit-field">
-                      <span>REPS</span>
-                      <input
-                        type="number"
-                        step="1"
-                        min="0"
-                        value={editReps}
-                        onChange={(e) => setEditReps(e.target.value)}
-                        placeholder="0"
-                      />
-                    </label>
-                  </div>
-                  <div className="pb-edit-actions">
-                    <button className="button secondary" onClick={cancelEdit} disabled={saving}>
-                      Cancelar
-                    </button>
-                    <button
-                      className="button primary"
-                      onClick={() => void handleSave(ex.id)}
-                      disabled={saving}
-                    >
-                      <Check size={13} />
-                      {saving ? "Guardando…" : "Guardar"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="pb-stats-row">
-                  {hasRecord ? (
-                    <>
-                      <div className="pb-load">
-                        <span className="pb-weight">{formatKg(ex.current_weight)} kg</span>
-                        <span className="pb-reps">× {ex.current_reps} reps</span>
-                      </div>
-                      {est1RM > 0 && (
-                        <span className="pb-1rm">
-                          1RM: <b>~{formatKg(est1RM)} kg</b>
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <span className="pb-empty">Sin marca registrada</span>
-                      <button
-                        className="text-button"
-                        onClick={() => startEdit(ex)}
-                      >
-                        + Añadir
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </article>
-          );
-        })}
-        {!filtered.length && (
-          <div className="empty-state">No hay ejercicios que coincidan con la búsqueda.</div>
-        )}
-      </div>
+      {groups.map(({ key, items }) => (
+        <div className="pb-group" key={key}>
+          <div className="pb-group-header">
+            <span className="pb-group-emoji">{MG_EMOJI[key]}</span>
+            <span className="pb-group-label">{MG_LABEL[key]}</span>
+            <span className="pb-group-count">{items.length}</span>
+          </div>
+          <div className="pb-grid">
+            {items.map(renderCard)}
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
 
 function TrainView({ exercises, routines, activeSession, onStart, onCreateExercise, onUpdateExercisePR, onDeleteExercise, onRefresh, onSetActive, onRefreshSession, onAddSet, onDeleteSet, notify, ask }: {
-  exercises: Exercise[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
+  exercises: Exercise[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number, notes?: string) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
 }) {
   const [name, setName] = useState(""); const [routineId, setRoutineId] = useState(""); const [addExerciseId, setAddExerciseId] = useState("");
   const [newName, setNewName] = useState(""); const [newMuscle, setNewMuscle] = useState("");
