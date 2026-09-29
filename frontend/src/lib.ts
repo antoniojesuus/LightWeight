@@ -3,6 +3,12 @@ import type { ProgressPoint, WorkoutSession } from "./types";
 export const formatKg = (value: number) => new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(value);
 export const formatDate = (date: string) => new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }).format(new Date(date));
 
+export function epley1RM(weight: number, reps: number): number {
+  if (reps <= 0 || weight <= 0) return 0;
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
 export function weeklyMetrics(sessions: WorkoutSession[]) {
   const now = Date.now();
   const since = now - 7 * 24 * 60 * 60 * 1000;

@@ -4,7 +4,7 @@ import {
   Dumbbell, FileText, LoaderCircle, Menu, NotebookPen, Pencil, Plus, Search, Trash2, X
 } from "lucide-react";
 import { api } from "./api";
-import { filterProgress, formatDate, formatKg, weeklyMetrics } from "./lib";
+import { filterProgress, formatDate, formatKg, epley1RM, weeklyMetrics } from "./lib";
 import { ProgressCharts } from "./ProgressCharts";
 import type { Exercise, LastExercise, ProgressPoint, Route, Routine, SessionExercise, WorkoutSession } from "./types";
 
@@ -61,6 +61,12 @@ export function App() {
   const createExercise = async (name: string, muscle: string) => {
     await api.createExercise(name, muscle); await reload(); notify("Ejercicio creado", "success"); haptic([10, 30, 10]);
   };
+  const updateExercisePR = async (id: number, current_weight: number, current_reps: number) => {
+    await api.updateExercise(id, { current_weight, current_reps });
+    await reload();
+    notify("Marca actualizada", "success");
+    haptic([10, 30, 10]);
+  };
   const deleteExercise = async (id: number) => {
     await api.deleteExercise(id); await reload(); notify("Ejercicio eliminado", "success"); haptic(20);
   };
@@ -99,7 +105,7 @@ export function App() {
     <main className="main-area">
       <Topbar metrics={metrics} />
       <div className="page-content">
-        {loading ? <Loading /> : route === "entrenar" ? <TrainView exercises={exercises} routines={routines} activeSession={activeSession} onStart={startSession} onCreateExercise={createExercise} onDeleteExercise={deleteExercise} onRefresh={reload} onSetActive={setActiveSession} onRefreshSession={refreshSession} onAddSet={addSet} onDeleteSet={deleteSet} notify={notify} ask={ask} /> : null}
+        {loading ? <Loading /> : route === "entrenar" ? <TrainView exercises={exercises} routines={routines} activeSession={activeSession} onStart={startSession} onCreateExercise={createExercise} onUpdateExercisePR={updateExercisePR} onDeleteExercise={deleteExercise} onRefresh={reload} onSetActive={setActiveSession} onRefreshSession={refreshSession} onAddSet={addSet} onDeleteSet={deleteSet} notify={notify} ask={ask} /> : null}
         {!loading && route === "rutinas" ? <RoutinesView exercises={exercises} routines={routines} selected={selectedRoutine} onSelect={setSelectedRoutineId} onCreate={createRoutine} onUpdate={updateRoutine} onDelete={deleteRoutine} onReload={reload} onStart={startSession} ask={ask} notify={notify} /> : null}
         {!loading && route === "historial" ? <HistoryView sessions={sessions} routines={routines} onReload={reload} ask={ask} /> : null}
         {!loading && route === "progreso" ? <ProgressView exercises={exercises} /> : null}
@@ -137,13 +143,177 @@ function Topbar({ metrics }: { metrics: { volume: number; sets: number } }) {
 function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) { return <div className="header-metric"><span>{label}</span><b className={accent ? "accent" : ""}>{value}</b></div>; }
 function Loading() { return <div className="loading"><LoaderCircle className="spin" size={24} />Cargando datos locales…</div>; }
 
-function TrainView({ exercises, routines, activeSession, onStart, onCreateExercise, onDeleteExercise, onRefresh, onSetActive, onRefreshSession, onAddSet, onDeleteSet, notify, ask }: {
-  exercises: Exercise[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
+function PersonalBestsWidget({
+  exercises,
+  onUpdatePR
+}: {
+  exercises: Exercise[];
+  onUpdatePR: (id: number, weight: number, reps: number) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editWeight, setEditWeight] = useState("");
+  const [editReps, setEditReps] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (ex: Exercise) => {
+    setEditingId(ex.id);
+    setEditWeight(ex.current_weight > 0 ? String(ex.current_weight) : "");
+    setEditReps(ex.current_reps > 0 ? String(ex.current_reps) : "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditWeight("");
+    setEditReps("");
+  };
+
+  const handleSave = async (id: number) => {
+    const w = parseFloat(editWeight) || 0;
+    const r = parseInt(editReps, 10) || 0;
+    setSaving(true);
+    try {
+      await onUpdatePR(id, w, r);
+      setEditingId(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = exercises.filter((ex) =>
+    `${ex.name} ${ex.muscle_group}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <section className="pb-widget">
+      <div className="pb-widget-head">
+        <div>
+          <span className="eyebrow">MARCAS ACTUALES / RÉCORDS PERSONALES</span>
+          <h2>Cargas y repeticiones por ejercicio</h2>
+          <p>Tus marcas vigentes. Pulsa en editar para actualizar tu nuevo récord cuando progreses en el gimnasio.</p>
+        </div>
+        <label className="search">
+          <Search size={15} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar ejercicio…"
+          />
+        </label>
+      </div>
+
+      <div className="pb-grid">
+        {filtered.map((ex) => {
+          const isEditing = editingId === ex.id;
+          const hasRecord = ex.current_weight > 0 && ex.current_reps > 0;
+          const est1RM = hasRecord ? epley1RM(ex.current_weight, ex.current_reps) : 0;
+
+          return (
+            <article className="pb-card" key={ex.id}>
+              <div className="pb-card-top">
+                <div>
+                  <h3 className="pb-card-name">{ex.name}</h3>
+                  <span className="pb-card-group">{ex.muscle_group || "General"}</span>
+                </div>
+                {!isEditing && (
+                  <button
+                    className="icon-button-sm"
+                    title="Actualizar marca"
+                    aria-label={`Editar marca de ${ex.name}`}
+                    onClick={() => startEdit(ex)}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </div>
+
+              {isEditing ? (
+                <div className="pb-edit-box">
+                  <div className="pb-edit-inputs">
+                    <label className="pb-edit-field">
+                      <span>PESO (KG)</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        value={editWeight}
+                        onChange={(e) => setEditWeight(e.target.value)}
+                        placeholder="0"
+                        autoFocus
+                      />
+                    </label>
+                    <label className="pb-edit-field">
+                      <span>REPS</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={editReps}
+                        onChange={(e) => setEditReps(e.target.value)}
+                        placeholder="0"
+                      />
+                    </label>
+                  </div>
+                  <div className="pb-edit-actions">
+                    <button className="button secondary" onClick={cancelEdit} disabled={saving}>
+                      Cancelar
+                    </button>
+                    <button
+                      className="button primary"
+                      onClick={() => void handleSave(ex.id)}
+                      disabled={saving}
+                    >
+                      <Check size={13} />
+                      {saving ? "Guardando…" : "Guardar"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pb-stats-row">
+                  {hasRecord ? (
+                    <>
+                      <div className="pb-load">
+                        <span className="pb-weight">{formatKg(ex.current_weight)} kg</span>
+                        <span className="pb-reps">× {ex.current_reps} reps</span>
+                      </div>
+                      {est1RM > 0 && (
+                        <span className="pb-1rm">
+                          1RM: <b>~{formatKg(est1RM)} kg</b>
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="pb-empty">Sin marca registrada</span>
+                      <button
+                        className="text-button"
+                        onClick={() => startEdit(ex)}
+                      >
+                        + Añadir
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </article>
+          );
+        })}
+        {!filtered.length && (
+          <div className="empty-state">No hay ejercicios que coincidan con la búsqueda.</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TrainView({ exercises, routines, activeSession, onStart, onCreateExercise, onUpdateExercisePR, onDeleteExercise, onRefresh, onSetActive, onRefreshSession, onAddSet, onDeleteSet, notify, ask }: {
+  exercises: Exercise[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
 }) {
   const [name, setName] = useState(""); const [routineId, setRoutineId] = useState(""); const [addExerciseId, setAddExerciseId] = useState("");
   const [newName, setNewName] = useState(""); const [newMuscle, setNewMuscle] = useState("");
   const start = async (fromRoutine: boolean) => { await onStart({ name, ...(fromRoutine && routineId ? { routine_id: Number(routineId) } : {}) }); setName(""); };
   return <PageTitle eyebrow="MÓDULO DE ENTRENAMIENTO" title="Sesión de fuerza" description="Registro rápido de carga, repeticiones y notas de entrenamiento." actions={null}>
+    <PersonalBestsWidget exercises={exercises} onUpdatePR={onUpdateExercisePR} />
     {!activeSession ? <section className="panel start-panel"><div><span className="eyebrow">NUEVA SESIÓN</span><h2>Empieza a registrar tu entrenamiento</h2><p>Elige una rutina o inicia una sesión libre.</p></div><div className="start-controls"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre opcional" /><select value={routineId} onChange={(event) => setRoutineId(event.target.value)}><option value="">Selecciona una rutina</option>{routines.map((routine) => <option value={routine.id} key={routine.id}>{routine.name}</option>)}</select><button className="button secondary" onClick={() => void start(false)}>Sesión libre</button><button className="button primary" disabled={!routineId} onClick={() => void start(true)}><Dumbbell size={16} />Desde rutina</button></div></section> : <ActiveSession session={activeSession} exercises={exercises} close={() => onSetActive(null)} onRefresh={onRefreshSession} onAddSet={onAddSet} onDeleteSet={onDeleteSet} notify={notify} ask={ask} />}
     <div className="split-grid"><section className="panel"><div className="section-heading"><div><h2>Catálogo de ejercicios</h2><p>{exercises.length} disponibles en tu base local.</p></div></div><form className="inline-form" onSubmit={(event) => { event.preventDefault(); if (!newName.trim()) return; void onCreateExercise(newName.trim(), newMuscle).then(() => { setNewName(""); setNewMuscle(""); }).catch((error: unknown) => notify(error instanceof Error ? error.message : "No se pudo crear el ejercicio", "error")); }}><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Nombre del ejercicio" aria-label="Nombre del ejercicio" /><select value={newMuscle} onChange={(event) => setNewMuscle(event.target.value)} aria-label="Grupo muscular"><option value="">Sin especificar</option><option value="Pecho">Pecho</option><option value="Espalda">Espalda</option><option value="Hombro">Hombro</option><option value="Brazo">Brazo</option><option value="Pierna">Pierna</option><option value="Core">Core</option><option value="Cuerpo completo">Cuerpo completo</option><option value="Cardio">Cardio</option><option value="Otro">Otro</option></select><button className="icon-button primary" aria-label="Crear ejercicio"><Plus size={17} /></button></form><div className="exercise-chips">{exercises.map((exercise) => <div className="exercise-chip" key={exercise.id}><span>{exercise.name}<small>{exercise.muscle_group || "General"}</small></span><button className="chip-delete" aria-label={`Eliminar ${exercise.name}`} onClick={() => ask("¿Eliminar ejercicio?", `Se eliminará “${exercise.name}” del catálogo. Solo se permite si aún no se ha usado en una rutina o sesión.`, async () => onDeleteExercise(exercise.id))}><Trash2 size={13} /></button></div>)}</div></section>
     <section className="panel compact-note"><NotebookPen size={20} /><h3>Sesiones locales</h3><p>Las series se guardan directamente en SQLite a través de la API local.</p><button className="text-button" onClick={() => void onRefresh()}>Actualizar datos</button></section></div>

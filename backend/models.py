@@ -14,6 +14,8 @@ class Exercise(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     muscle_group: Mapped[str] = mapped_column(String(50), default="", nullable=False)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    current_weight: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    current_reps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     routine_links: Mapped[list["RoutineExercise"]] = relationship(
         back_populates="exercise", cascade="all, delete-orphan"

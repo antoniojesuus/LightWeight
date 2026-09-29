@@ -1,4 +1,11 @@
-export type Exercise = { id: number; name: string; muscle_group: string; notes: string };
+export type Exercise = {
+  id: number;
+  name: string;
+  muscle_group: string;
+  notes: string;
+  current_weight: number;
+  current_reps: number;
+};
 
 export type RoutineExercise = {
   id: number; exercise_id: number; exercise_name: string; muscle_group: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterProgress, weeklyMetrics } from "./lib";
+import { epley1RM, filterProgress, weeklyMetrics } from "./lib";
 import type { WorkoutSession } from "./types";
 
 const session = (date: string, volume: number, sets: number): WorkoutSession => ({
@@ -25,5 +25,14 @@ describe("filterProgress", () => {
     ];
     expect(filterProgress(points, "3")).toHaveLength(1);
     expect(filterProgress(points, "all")).toHaveLength(2);
+  });
+});
+
+describe("epley1RM", () => {
+  it("calcula 1RM correctamente", () => {
+    expect(epley1RM(100, 1)).toBe(100);
+    expect(epley1RM(100, 10)).toBe(133.3);
+    expect(epley1RM(0, 5)).toBe(0);
+    expect(epley1RM(100, 0)).toBe(0);
   });
 });

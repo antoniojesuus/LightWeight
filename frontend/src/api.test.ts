@@ -31,6 +31,15 @@ describe("api client", () => {
     }));
   });
 
+  it("actualiza marcas personales de un ejercicio", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, name: "Press banca", current_weight: 90, current_reps: 8 }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await api.updateExercise(1, { current_weight: 90, current_reps: 8 });
+    expect(fetchMock).toHaveBeenCalledWith("/api/exercises/1", expect.objectContaining({
+      method: "PATCH", body: JSON.stringify({ current_weight: 90, current_reps: 8 })
+    }));
+  });
+
   it("expone el detalle del backend cuando una mutación falla", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "Rutina no encontrada" }), { status: 404 })));
     await expect(api.deleteRoutine(99)).rejects.toThrow("Rutina no encontrada");

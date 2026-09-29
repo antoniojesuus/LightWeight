@@ -18,7 +18,25 @@ from .database import Base, engine, get_db
 from . import models
 from . import schemas
 
+from sqlalchemy import text
+
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_exercise_columns():
+    """Garantiza que las columnas current_weight y current_reps existan en tablas ya creadas."""
+    for col, col_type, default in [
+        ("current_weight", "FLOAT", "0.0"),
+        ("current_reps", "INTEGER", "0"),
+    ]:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE exercises ADD COLUMN {col} {col_type} DEFAULT {default}"))
+        except Exception:
+            pass
+
+
+ensure_exercise_columns()
 
 app = FastAPI(title="LightWeight API", version="0.1.0")
 app.add_middleware(
@@ -135,8 +153,44 @@ def create_exercise(data: schemas.ExerciseCreate, db: Session = Depends(get_db))
     exists = db.query(models.Exercise).filter(models.Exercise.name.ilike(data.name.strip())).first()
     if exists:
         raise HTTPException(400, "Ya existe un ejercicio con ese nombre")
-    ex = models.Exercise(name=data.name.strip(), muscle_group=data.muscle_group.strip(), notes=data.notes)
+    ex = models.Exercise(
+        name=data.name.strip(),
+        muscle_group=data.muscle_group.strip(),
+        notes=data.notes,
+        current_weight=data.current_weight,
+        current_reps=data.current_reps,
+    )
     db.add(ex)
+    db.commit()
+    db.refresh(ex)
+    return ex
+
+
+@app.patch("/api/exercises/{exercise_id}", response_model=schemas.ExerciseOut)
+def update_exercise(exercise_id: int, data: schemas.ExerciseUpdate, db: Session = Depends(get_db)):
+    ex = db.get(models.Exercise, exercise_id)
+    if not ex:
+        raise HTTPException(404, "Ejercicio no encontrado")
+    if data.name is not None:
+        name_clean = data.name.strip()
+        if not name_clean:
+            raise HTTPException(400, "El nombre no puede estar vacío")
+        exists = (
+            db.query(models.Exercise)
+            .filter(models.Exercise.name.ilike(name_clean), models.Exercise.id != exercise_id)
+            .first()
+        )
+        if exists:
+            raise HTTPException(400, "Ya existe otro ejercicio con ese nombre")
+        ex.name = name_clean
+    if data.muscle_group is not None:
+        ex.muscle_group = data.muscle_group.strip()
+    if data.notes is not None:
+        ex.notes = data.notes
+    if data.current_weight is not None:
+        ex.current_weight = max(0.0, float(data.current_weight))
+    if data.current_reps is not None:
+        ex.current_reps = max(0, int(data.current_reps))
     db.commit()
     db.refresh(ex)
     return ex

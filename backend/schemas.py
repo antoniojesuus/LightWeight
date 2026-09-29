@@ -8,6 +8,16 @@ class ExerciseCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     muscle_group: str = ""
     notes: str = ""
+    current_weight: float = 0.0
+    current_reps: int = 0
+
+
+class ExerciseUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    muscle_group: str | None = None
+    notes: str | None = None
+    current_weight: float | None = None
+    current_reps: int | None = None
 
 
 class ExerciseOut(BaseModel):
@@ -15,6 +25,8 @@ class ExerciseOut(BaseModel):
     name: str
     muscle_group: str
     notes: str
+    current_weight: float
+    current_reps: int
 
     class Config:
         from_attributes = True
