@@ -1,4 +1,4 @@
-import type { Exercise, LastExercise, MuscleGroup, ProgressPoint, Routine, SetLog, WorkoutSession } from "./types";
+import type { Exercise, LastExercise, ProgressPoint, Routine, SetLog, WorkoutSession } from "./types";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
@@ -14,17 +14,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  muscleGroups: () => request<MuscleGroup[]>("/api/muscle-groups"),
-  createMuscleGroup: (name: string, emoji: string) => request<MuscleGroup>("/api/muscle-groups", {
-    method: "POST", body: JSON.stringify({ name, emoji })
-  }),
-  updateMuscleGroup: (id: number, data: { name?: string; emoji?: string }) => request<MuscleGroup>(`/api/muscle-groups/${id}`, {
-    method: "PATCH", body: JSON.stringify(data)
-  }),
-  reorderMuscleGroups: (ids: number[]) => request<MuscleGroup[]>("/api/muscle-groups/reorder", {
-    method: "PUT", body: JSON.stringify({ ids })
-  }),
-  deleteMuscleGroup: (id: number) => request<void>(`/api/muscle-groups/${id}`, { method: "DELETE" }),
   exercises: () => request<Exercise[]>("/api/exercises"),
   createExercise: (name: string, muscle_group: string, current_weight = 0, current_reps = 0) =>
     request<Exercise>("/api/exercises", {

@@ -4,24 +4,6 @@ import { api } from "./api";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("api client", () => {
-  it("reordena todos los grupos musculares en una sola petición", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    await api.reorderMuscleGroups([3, 1, 2]);
-    expect(fetchMock).toHaveBeenCalledWith("/api/muscle-groups/reorder", expect.objectContaining({
-      method: "PUT", body: JSON.stringify({ ids: [3, 1, 2] })
-    }));
-  });
-
-  it("actualiza nombre y emoji de un grupo", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 2, name: "Tirón", emoji: "🧲" }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    await api.updateMuscleGroup(2, { name: "Tirón", emoji: "🧲" });
-    expect(fetchMock).toHaveBeenCalledWith("/api/muscle-groups/2", expect.objectContaining({
-      method: "PATCH", body: JSON.stringify({ name: "Tirón", emoji: "🧲" })
-    }));
-  });
-
   it("envía una sesión nueva al endpoint existente", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, name: "Torso" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
