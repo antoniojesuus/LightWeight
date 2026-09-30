@@ -18,8 +18,9 @@ from .database import Base, engine, get_db
 from . import models
 from . import schemas
 
-from sqlalchemy import text
+from sqlalchemy import func, inspect, text
 
+muscle_groups_table_existed = inspect(engine).has_table("muscle_groups")
 Base.metadata.create_all(bind=engine)
 
 
@@ -133,13 +134,136 @@ def seed_exercises(db: Session):
         db.commit()
 
 
+DEFAULT_MUSCLE_GROUPS = [
+    ("Pecho", "🏋️"),
+    ("Espalda", "🧲"),
+    ("Pierna", "🦵"),
+    ("Hombro", "🧱"),
+    ("Brazo", "💪"),
+    ("Core", "⚡"),
+    ("Cuerpo completo", "🔄"),
+    ("Cardio", "🏃"),
+    ("Otro", "🔧"),
+]
+
+
+def seed_muscle_groups(db: Session):
+    """Populate the new table once, preserving groups already used by exercises."""
+    if muscle_groups_table_existed or db.query(models.MuscleGroup).count() > 0:
+        return
+    configured = {name.casefold() for name, _ in DEFAULT_MUSCLE_GROUPS}
+    for order, (name, emoji) in enumerate(DEFAULT_MUSCLE_GROUPS):
+        db.add(models.MuscleGroup(name=name, emoji=emoji, display_order=order))
+    existing_names = {
+        name.strip()
+        for (name,) in db.query(models.Exercise.muscle_group).distinct().all()
+        if name and name.strip()
+    }
+    next_order = len(DEFAULT_MUSCLE_GROUPS)
+    for name in sorted(existing_names, key=str.casefold):
+        if name.casefold() not in configured:
+            db.add(models.MuscleGroup(name=name, emoji="💪", display_order=next_order))
+            next_order += 1
+    db.commit()
+
+
 @app.on_event("startup")
 def on_startup():
     db = next(get_db())
     try:
         seed_exercises(db)
+        seed_muscle_groups(db)
     finally:
         db.close()
+
+
+# ---------- Muscle Groups ----------
+@app.get("/api/muscle-groups", response_model=list[schemas.MuscleGroupOut])
+def list_muscle_groups(db: Session = Depends(get_db)):
+    return (
+        db.query(models.MuscleGroup)
+        .order_by(models.MuscleGroup.display_order, models.MuscleGroup.id)
+        .all()
+    )
+
+
+@app.post("/api/muscle-groups", response_model=schemas.MuscleGroupOut, status_code=201)
+def create_muscle_group(data: schemas.MuscleGroupCreate, db: Session = Depends(get_db)):
+    name = data.name.strip()
+    emoji = data.emoji.strip() or "💪"
+    if not name:
+        raise HTTPException(400, "El nombre no puede estar vacío")
+    exists = db.query(models.MuscleGroup).filter(models.MuscleGroup.name.ilike(name)).first()
+    if exists:
+        raise HTTPException(400, "Ya existe un grupo con ese nombre")
+    max_order = db.query(func.max(models.MuscleGroup.display_order)).scalar()
+    group = models.MuscleGroup(
+        name=name,
+        emoji=emoji,
+        display_order=(max_order + 1) if max_order is not None else 0,
+    )
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@app.patch("/api/muscle-groups/{group_id}", response_model=schemas.MuscleGroupOut)
+def update_muscle_group(
+    group_id: int, data: schemas.MuscleGroupUpdate, db: Session = Depends(get_db)
+):
+    group = db.get(models.MuscleGroup, group_id)
+    if not group:
+        raise HTTPException(404, "Grupo no encontrado")
+    if data.name is not None:
+        new_name = data.name.strip()
+        if not new_name:
+            raise HTTPException(400, "El nombre no puede estar vacío")
+        exists = (
+            db.query(models.MuscleGroup)
+            .filter(models.MuscleGroup.name.ilike(new_name), models.MuscleGroup.id != group_id)
+            .first()
+        )
+        if exists:
+            raise HTTPException(400, "Ya existe otro grupo con ese nombre")
+        old_name = group.name
+        group.name = new_name
+        db.query(models.Exercise).filter(models.Exercise.muscle_group == old_name).update(
+            {"muscle_group": new_name}, synchronize_session=False
+        )
+    if data.emoji is not None:
+        group.emoji = data.emoji.strip() or "💪"
+    if data.display_order is not None:
+        group.display_order = data.display_order
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@app.put("/api/muscle-groups/reorder", response_model=list[schemas.MuscleGroupOut])
+def reorder_muscle_groups(data: schemas.MuscleGroupReorder, db: Session = Depends(get_db)):
+    groups = db.query(models.MuscleGroup).all()
+    current_ids = {group.id for group in groups}
+    if len(data.ids) != len(set(data.ids)) or set(data.ids) != current_ids:
+        raise HTTPException(400, "La lista debe incluir todos los grupos una sola vez")
+    order_by_id = {group_id: order for order, group_id in enumerate(data.ids)}
+    for group in groups:
+        group.display_order = order_by_id[group.id]
+    db.commit()
+    return list_muscle_groups(db)
+
+
+@app.delete("/api/muscle-groups/{group_id}", status_code=204)
+def delete_muscle_group(group_id: int, db: Session = Depends(get_db)):
+    group = db.get(models.MuscleGroup, group_id)
+    if not group:
+        raise HTTPException(404, "Grupo no encontrado")
+    db.query(models.Exercise).filter(models.Exercise.muscle_group == group.name).update(
+        {"muscle_group": ""}, synchronize_session=False
+    )
+    db.delete(group)
+    db.commit()
+    return None
 
 
 # ---------- Exercises ----------

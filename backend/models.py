@@ -5,6 +5,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
 
+class MuscleGroup(Base):
+    """Grupo muscular personalizable (ej: Pecho, Espalda, Pierna)."""
+
+    __tablename__ = "muscle_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    emoji: Mapped[str] = mapped_column(String(10), default="💪", nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
 class Exercise(Base):
     """Catálogo de ejercicios (ej: Press banca, Sentadilla)."""
 

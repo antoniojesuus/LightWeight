@@ -7,6 +7,13 @@ export type Exercise = {
   current_reps: number;
 };
 
+export type MuscleGroup = {
+  id: number;
+  name: string;
+  emoji: string;
+  display_order: number;
+};
+
 export type RoutineExercise = {
   id: number; exercise_id: number; exercise_name: string; muscle_group: string;
   position: number; target_sets: number; target_reps: number; target_weight: number; notes: string;

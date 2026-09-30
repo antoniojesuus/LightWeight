@@ -94,6 +94,40 @@ input, select { height: 38px; padding: 0 11px; } textarea { min-height: 72px; pa
 .pb-widget-head .search {
   width: 220px;
 }
+.pb-widget-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.group-manager {
+  margin: -4px 0 20px;
+  padding: 14px;
+  background: #0d0d11;
+  border: 1px solid #44385c;
+  border-radius: 8px;
+}
+.group-manager-heading h3 { margin: 0 0 4px; font-size: 14px; }
+.group-manager-heading p { margin: 0 0 12px; color: #8f8f99; font-size: 11px; }
+.group-manager-list { display: grid; gap: 7px; }
+.group-manager-row {
+  display: grid;
+  grid-template-columns: auto 52px minmax(120px, 1fr) 28px 28px;
+  align-items: center;
+  gap: 7px;
+}
+.group-order-actions { display: flex; gap: 4px; }
+.group-manager-row input { height: 32px; font-size: 12px; }
+.group-emoji-input { width: 52px; padding: 0 6px; text-align: center; }
+.group-manager-empty { margin: 4px 0 10px; color: #71717a; font-size: 11px; }
+.group-add-form {
+  display: grid;
+  grid-template-columns: 52px minmax(120px, 1fr) auto;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #292932;
+}
 /* Muscle group section */
 .pb-group {
   margin-bottom: 20px;
@@ -343,7 +377,11 @@ input, select { height: 38px; padding: 0 11px; } textarea { min-height: 72px; pa
   /* Widget de marcas en móvil */
   .pb-widget { padding: 16px; }
   .pb-widget-head { flex-direction: column; align-items: stretch; gap: 10px; }
-  .pb-widget-head .search { width: 100%; }
+  .pb-widget-tools, .pb-widget-head .search { width: 100%; }
+  .pb-widget-tools .search { flex: 1; }
+  .group-manager-row { grid-template-columns: auto 46px minmax(0, 1fr) 28px 28px; }
+  .group-add-form { grid-template-columns: 46px minmax(0, 1fr); }
+  .group-add-form button { grid-column: 1 / -1; }
   .pb-grid { grid-template-columns: 1fr; }
 
   /* Entrenar: nueva sesión adaptada a móvil */
