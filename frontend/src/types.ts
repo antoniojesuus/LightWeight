@@ -2,9 +2,17 @@ export type Exercise = {
   id: number;
   name: string;
   muscle_group: string;
+  pb_group_id: number | null;
   notes: string;
   current_weight: number;
   current_reps: number;
+};
+
+export type PbGroup = {
+  id: number;
+  name: string;
+  emoji: string;
+  display_order: number;
 };
 
 export type RoutineExercise = {

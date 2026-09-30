@@ -5,6 +5,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
 
+class PbGroup(Base):
+    """Custom grouping used only by the personal-bests widget."""
+
+    __tablename__ = "pb_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    emoji: Mapped[str] = mapped_column(String(10), default="💪", nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
 class Exercise(Base):
     """Catálogo de ejercicios (ej: Press banca, Sentadilla)."""
 
@@ -13,6 +24,9 @@ class Exercise(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     muscle_group: Mapped[str] = mapped_column(String(50), default="", nullable=False)
+    pb_group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pb_groups.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     current_weight: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     current_reps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

@@ -18,8 +18,9 @@ from .database import Base, engine, get_db
 from . import models
 from . import schemas
 
-from sqlalchemy import text
+from sqlalchemy import func, inspect, text
 
+pb_groups_table_existed = inspect(engine).has_table("pb_groups")
 Base.metadata.create_all(bind=engine)
 
 
@@ -28,6 +29,7 @@ def ensure_exercise_columns():
     for col, col_type, default in [
         ("current_weight", "FLOAT", "0.0"),
         ("current_reps", "INTEGER", "0"),
+        ("pb_group_id", "INTEGER REFERENCES pb_groups(id) ON DELETE SET NULL", "NULL"),
     ]:
         try:
             with engine.begin() as conn:
@@ -133,13 +135,125 @@ def seed_exercises(db: Session):
         db.commit()
 
 
+DEFAULT_PB_GROUPS = [
+    ("Pecho", "🏋️"),
+    ("Espalda", "🧲"),
+    ("Pierna", "🦵"),
+    ("Hombro", "🧱"),
+    ("Brazo", "💪"),
+    ("Core", "⚡"),
+    ("Cuerpo completo", "🔄"),
+    ("Cardio", "🏃"),
+    ("Otro", "🔧"),
+]
+
+
+def seed_pb_groups(db: Session):
+    """Create initial PB groups once and copy legacy visual grouping assignments."""
+    if pb_groups_table_existed or db.query(models.PbGroup).count() > 0:
+        return
+    configured = {name.casefold() for name, _ in DEFAULT_PB_GROUPS}
+    for order, (name, emoji) in enumerate(DEFAULT_PB_GROUPS):
+        db.add(models.PbGroup(name=name, emoji=emoji, display_order=order))
+    existing_names = {
+        name.strip()
+        for (name,) in db.query(models.Exercise.muscle_group).distinct().all()
+        if name and name.strip()
+    }
+    next_order = len(DEFAULT_PB_GROUPS)
+    for name in sorted(existing_names, key=str.casefold):
+        if name.casefold() not in configured:
+            db.add(models.PbGroup(name=name, emoji="💪", display_order=next_order))
+            next_order += 1
+    db.flush()
+    groups_by_name = {group.name: group.id for group in db.query(models.PbGroup).all()}
+    for exercise in db.query(models.Exercise).all():
+        exercise.pb_group_id = groups_by_name.get(exercise.muscle_group)
+    db.commit()
+
+
 @app.on_event("startup")
 def on_startup():
     db = next(get_db())
     try:
         seed_exercises(db)
+        seed_pb_groups(db)
     finally:
         db.close()
+
+
+# ---------- PB Groups ----------
+@app.get("/api/pb-groups", response_model=list[schemas.PbGroupOut])
+def list_pb_groups(db: Session = Depends(get_db)):
+    return db.query(models.PbGroup).order_by(models.PbGroup.display_order, models.PbGroup.id).all()
+
+
+@app.post("/api/pb-groups", response_model=schemas.PbGroupOut, status_code=201)
+def create_pb_group(data: schemas.PbGroupCreate, db: Session = Depends(get_db)):
+    name = data.name.strip()
+    emoji = data.emoji.strip() or "💪"
+    if not name:
+        raise HTTPException(400, "El nombre no puede estar vacío")
+    if db.query(models.PbGroup).filter(models.PbGroup.name.ilike(name)).first():
+        raise HTTPException(400, "Ya existe un grupo PB con ese nombre")
+    max_order = db.query(func.max(models.PbGroup.display_order)).scalar()
+    group = models.PbGroup(
+        name=name, emoji=emoji, display_order=(max_order + 1) if max_order is not None else 0
+    )
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@app.patch("/api/pb-groups/{group_id}", response_model=schemas.PbGroupOut)
+def update_pb_group(group_id: int, data: schemas.PbGroupUpdate, db: Session = Depends(get_db)):
+    group = db.get(models.PbGroup, group_id)
+    if not group:
+        raise HTTPException(404, "Grupo PB no encontrado")
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(400, "El nombre no puede estar vacío")
+        duplicate = (
+            db.query(models.PbGroup)
+            .filter(models.PbGroup.name.ilike(name), models.PbGroup.id != group_id)
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(400, "Ya existe otro grupo PB con ese nombre")
+        group.name = name
+    if data.emoji is not None:
+        group.emoji = data.emoji.strip() or "💪"
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@app.put("/api/pb-groups/reorder", response_model=list[schemas.PbGroupOut])
+def reorder_pb_groups(data: schemas.PbGroupReorder, db: Session = Depends(get_db)):
+    groups = db.query(models.PbGroup).all()
+    current_ids = {group.id for group in groups}
+    if len(data.ids) != len(set(data.ids)) or set(data.ids) != current_ids:
+        raise HTTPException(400, "La lista debe incluir todos los grupos PB una sola vez")
+    order_by_id = {group_id: order for order, group_id in enumerate(data.ids)}
+    for group in groups:
+        group.display_order = order_by_id[group.id]
+    db.commit()
+    return list_pb_groups(db)
+
+
+@app.delete("/api/pb-groups/{group_id}", status_code=204)
+def delete_pb_group(group_id: int, db: Session = Depends(get_db)):
+    group = db.get(models.PbGroup, group_id)
+    if not group:
+        raise HTTPException(404, "Grupo PB no encontrado")
+    db.query(models.Exercise).filter(models.Exercise.pb_group_id == group_id).update(
+        {"pb_group_id": None}, synchronize_session=False
+    )
+    db.delete(group)
+    db.commit()
+    return None
 
 
 # ---------- Exercises ----------
@@ -153,9 +267,12 @@ def create_exercise(data: schemas.ExerciseCreate, db: Session = Depends(get_db))
     exists = db.query(models.Exercise).filter(models.Exercise.name.ilike(data.name.strip())).first()
     if exists:
         raise HTTPException(400, "Ya existe un ejercicio con ese nombre")
+    if data.pb_group_id is not None and not db.get(models.PbGroup, data.pb_group_id):
+        raise HTTPException(404, "Grupo PB no encontrado")
     ex = models.Exercise(
         name=data.name.strip(),
         muscle_group=data.muscle_group.strip(),
+        pb_group_id=data.pb_group_id,
         notes=data.notes,
         current_weight=data.current_weight,
         current_reps=data.current_reps,
@@ -185,6 +302,10 @@ def update_exercise(exercise_id: int, data: schemas.ExerciseUpdate, db: Session 
         ex.name = name_clean
     if data.muscle_group is not None:
         ex.muscle_group = data.muscle_group.strip()
+    if "pb_group_id" in data.model_fields_set:
+        if data.pb_group_id is not None and not db.get(models.PbGroup, data.pb_group_id):
+            raise HTTPException(404, "Grupo PB no encontrado")
+        ex.pb_group_id = data.pb_group_id
     if data.notes is not None:
         ex.notes = data.notes
     if data.current_weight is not None:

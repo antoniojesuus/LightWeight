@@ -3,10 +3,36 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+# ---------- PB Groups ----------
+class PbGroupCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    emoji: str = Field(default="💪", max_length=10)
+
+
+class PbGroupUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    emoji: str | None = Field(default=None, max_length=10)
+
+
+class PbGroupOut(BaseModel):
+    id: int
+    name: str
+    emoji: str
+    display_order: int
+
+    class Config:
+        from_attributes = True
+
+
+class PbGroupReorder(BaseModel):
+    ids: list[int]
+
+
 # ---------- Exercises ----------
 class ExerciseCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     muscle_group: str = ""
+    pb_group_id: int | None = None
     notes: str = ""
     current_weight: float = 0.0
     current_reps: int = 0
@@ -15,6 +41,7 @@ class ExerciseCreate(BaseModel):
 class ExerciseUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     muscle_group: str | None = None
+    pb_group_id: int | None = None
     notes: str | None = None
     current_weight: float | None = None
     current_reps: int | None = None
@@ -24,6 +51,7 @@ class ExerciseOut(BaseModel):
     id: int
     name: str
     muscle_group: str
+    pb_group_id: int | None
     notes: str
     current_weight: float
     current_reps: int

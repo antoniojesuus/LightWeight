@@ -4,6 +4,33 @@ import { api } from "./api";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("api client", () => {
+  it("reordena los grupos PB sin usar grupos musculares", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await api.reorderPbGroups([3, 1, 2]);
+    expect(fetchMock).toHaveBeenCalledWith("/api/pb-groups/reorder", expect.objectContaining({
+      method: "PUT", body: JSON.stringify({ ids: [3, 1, 2] })
+    }));
+  });
+
+  it("asigna un ejercicio a un grupo PB independiente", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, pb_group_id: 4 }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await api.updateExercise(1, { pb_group_id: 4 });
+    expect(fetchMock).toHaveBeenCalledWith("/api/exercises/1", expect.objectContaining({
+      method: "PATCH", body: JSON.stringify({ pb_group_id: 4 })
+    }));
+  });
+
+  it("quita un ejercicio del grupo PB sin eliminarlo", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, pb_group_id: null }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await api.updateExercise(1, { pb_group_id: null });
+    expect(fetchMock).toHaveBeenCalledWith("/api/exercises/1", expect.objectContaining({
+      method: "PATCH", body: JSON.stringify({ pb_group_id: null })
+    }));
+  });
+
   it("envía una sesión nueva al endpoint existente", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, name: "Torso" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);

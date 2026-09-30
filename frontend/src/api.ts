@@ -1,4 +1,4 @@
-import type { Exercise, LastExercise, ProgressPoint, Routine, SetLog, WorkoutSession } from "./types";
+import type { Exercise, LastExercise, PbGroup, ProgressPoint, Routine, SetLog, WorkoutSession } from "./types";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
@@ -14,13 +14,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  pbGroups: () => request<PbGroup[]>("/api/pb-groups"),
+  createPbGroup: (name: string, emoji: string) => request<PbGroup>("/api/pb-groups", {
+    method: "POST", body: JSON.stringify({ name, emoji })
+  }),
+  updatePbGroup: (id: number, data: { name?: string; emoji?: string }) => request<PbGroup>(`/api/pb-groups/${id}`, {
+    method: "PATCH", body: JSON.stringify(data)
+  }),
+  reorderPbGroups: (ids: number[]) => request<PbGroup[]>("/api/pb-groups/reorder", {
+    method: "PUT", body: JSON.stringify({ ids })
+  }),
+  deletePbGroup: (id: number) => request<void>(`/api/pb-groups/${id}`, { method: "DELETE" }),
   exercises: () => request<Exercise[]>("/api/exercises"),
   createExercise: (name: string, muscle_group: string, current_weight = 0, current_reps = 0) =>
     request<Exercise>("/api/exercises", {
       method: "POST",
       body: JSON.stringify({ name, muscle_group, current_weight, current_reps })
     }),
-  updateExercise: (id: number, data: { name?: string; muscle_group?: string; notes?: string; current_weight?: number; current_reps?: number }) =>
+  updateExercise: (id: number, data: { name?: string; muscle_group?: string; pb_group_id?: number | null; notes?: string; current_weight?: number; current_reps?: number }) =>
     request<Exercise>(`/api/exercises/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteExercise: (id: number) => request<void>(`/api/exercises/${id}`, { method: "DELETE" }),
   routines: () => request<Routine[]>("/api/routines"),

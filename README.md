@@ -25,7 +25,8 @@ App local de seguimiento de entrenamientos en el gimnasio.
 
 ## Modelo de datos
 
-- **exercises**: catálogo (`name` único, `muscle_group`, `notes`).
+- **exercises**: catálogo (`name` único, `muscle_group`, `pb_group_id`, `notes`).
+- **pb_groups**: agrupaciones personalizables del widget de marcas, independientes del grupo muscular.
 - **routines** + **routine_exercises**: planificación (`target_sets/reps/weight`, `position`, `notes`).
 - **workout_sessions**: sesión real (`routine_id` opcional, `date`, `notes` global).
 - **session_exercises**: ejercicio en sesión (permite añadir/quitar sobre la marcha, `notes` por ejercicio).
