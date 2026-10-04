@@ -28,11 +28,15 @@ class PbGroupReorder(BaseModel):
     ids: list[int]
 
 
+class PbGroupExerciseReorder(BaseModel):
+    exercise_ids: list[int]
+
+
 # ---------- Exercises ----------
 class ExerciseCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     muscle_group: str = ""
-    pb_group_id: int | None = None
+    pb_group_ids: list[int] = Field(default_factory=list)
     notes: str = ""
     current_weight: float = 0.0
     current_reps: int = 0
@@ -41,7 +45,7 @@ class ExerciseCreate(BaseModel):
 class ExerciseUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     muscle_group: str | None = None
-    pb_group_id: int | None = None
+    pb_group_ids: list[int] | None = None
     notes: str | None = None
     current_weight: float | None = None
     current_reps: int | None = None
@@ -51,7 +55,8 @@ class ExerciseOut(BaseModel):
     id: int
     name: str
     muscle_group: str
-    pb_group_id: int | None
+    pb_group_ids: list[int]
+    pb_group_positions: dict[int, int]
     notes: str
     current_weight: float
     current_reps: int

@@ -16,6 +16,20 @@ class PbGroup(Base):
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
+class ExercisePbGroup(Base):
+    """Many-to-many membership between exercises and PB groups."""
+
+    __tablename__ = "exercise_pb_groups"
+
+    exercise_id: Mapped[int] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
+    )
+    pb_group_id: Mapped[int] = mapped_column(
+        ForeignKey("pb_groups.id", ondelete="CASCADE"), primary_key=True
+    )
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
 class Exercise(Base):
     """Catálogo de ejercicios (ej: Press banca, Sentadilla)."""
 
@@ -24,9 +38,6 @@ class Exercise(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     muscle_group: Mapped[str] = mapped_column(String(50), default="", nullable=False)
-    pb_group_id: Mapped[int | None] = mapped_column(
-        ForeignKey("pb_groups.id", ondelete="SET NULL"), nullable=True, index=True
-    )
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     current_weight: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     current_reps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

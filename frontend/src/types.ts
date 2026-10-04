@@ -2,7 +2,8 @@ export type Exercise = {
   id: number;
   name: string;
   muscle_group: string;
-  pb_group_id: number | null;
+  pb_group_ids: number[];
+  pb_group_positions: Record<number, number>;
   notes: string;
   current_weight: number;
   current_reps: number;

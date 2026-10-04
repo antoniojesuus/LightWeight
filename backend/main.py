@@ -1,4 +1,4 @@
-"""LightWeight API — FastAPI + SQLite + SQLAlchemy.
+"""LightWeight API — FastAPI + SQLAlchemy (SQLite or PostgreSQL/Neon).
 
 Arranque local:
     pip install -r requirements.txt
@@ -20,7 +20,15 @@ from . import schemas
 
 from sqlalchemy import func, inspect, text
 
-pb_groups_table_existed = inspect(engine).has_table("pb_groups")
+db_inspector = inspect(engine)
+pb_groups_table_existed = db_inspector.has_table("pb_groups")
+legacy_pb_group_column_existed = db_inspector.has_table("exercises") and any(
+    column["name"] == "pb_group_id" for column in db_inspector.get_columns("exercises")
+)
+pb_membership_order_column_existed = db_inspector.has_table("exercise_pb_groups") and any(
+    column["name"] == "display_order"
+    for column in db_inspector.get_columns("exercise_pb_groups")
+)
 Base.metadata.create_all(bind=engine)
 
 
@@ -29,7 +37,6 @@ def ensure_exercise_columns():
     for col, col_type, default in [
         ("current_weight", "FLOAT", "0.0"),
         ("current_reps", "INTEGER", "0"),
-        ("pb_group_id", "INTEGER REFERENCES pb_groups(id) ON DELETE SET NULL", "NULL"),
     ]:
         try:
             with engine.begin() as conn:
@@ -39,6 +46,24 @@ def ensure_exercise_columns():
 
 
 ensure_exercise_columns()
+
+
+def ensure_exercise_pb_group_columns():
+    """Add per-group exercise ordering to databases created before this feature."""
+    if not inspect(engine).has_table("exercise_pb_groups"):
+        return
+    column_names = {
+        column["name"] for column in inspect(engine).get_columns("exercise_pb_groups")
+    }
+    if "display_order" not in column_names:
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE exercise_pb_groups "
+                "ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"
+            ))
+
+
+ensure_exercise_pb_group_columns()
 
 app = FastAPI(title="LightWeight API", version="0.1.0")
 app.add_middleware(
@@ -168,7 +193,115 @@ def seed_pb_groups(db: Session):
     db.flush()
     groups_by_name = {group.name: group.id for group in db.query(models.PbGroup).all()}
     for exercise in db.query(models.Exercise).all():
-        exercise.pb_group_id = groups_by_name.get(exercise.muscle_group)
+        group_id = groups_by_name.get(exercise.muscle_group)
+        if group_id is not None:
+            next_position = db.query(func.count(models.ExercisePbGroup.exercise_id)).filter(
+                models.ExercisePbGroup.pb_group_id == group_id
+            ).scalar() or 0
+            db.add(models.ExercisePbGroup(
+                exercise_id=exercise.id, pb_group_id=group_id, display_order=next_position
+            ))
+    db.commit()
+
+
+def exercise_out(exercise: models.Exercise, db: Session) -> dict:
+    memberships = (
+            db.query(models.ExercisePbGroup)
+            .filter(models.ExercisePbGroup.exercise_id == exercise.id)
+            .order_by(models.ExercisePbGroup.pb_group_id)
+            .all()
+    )
+    return {
+        "id": exercise.id,
+        "name": exercise.name,
+        "muscle_group": exercise.muscle_group,
+        "pb_group_ids": [membership.pb_group_id for membership in memberships],
+        "pb_group_positions": {
+            membership.pb_group_id: membership.display_order for membership in memberships
+        },
+        "notes": exercise.notes,
+        "current_weight": exercise.current_weight,
+        "current_reps": exercise.current_reps,
+    }
+
+
+def validate_pb_group_ids(group_ids: list[int], db: Session) -> list[int]:
+    unique_ids = list(dict.fromkeys(group_ids))
+    existing_ids = {
+        group_id
+        for (group_id,) in db.query(models.PbGroup.id).filter(models.PbGroup.id.in_(unique_ids)).all()
+    } if unique_ids else set()
+    if existing_ids != set(unique_ids):
+        raise HTTPException(404, "Uno o más grupos PB no existen")
+    return unique_ids
+
+
+def replace_pb_memberships(exercise_id: int, group_ids: list[int], db: Session):
+    valid_ids = validate_pb_group_ids(group_ids, db)
+    current = db.query(models.ExercisePbGroup).filter(
+        models.ExercisePbGroup.exercise_id == exercise_id
+    ).all()
+    current_by_group = {membership.pb_group_id: membership for membership in current}
+    for group_id, membership in current_by_group.items():
+        if group_id not in valid_ids:
+            db.delete(membership)
+    for group_id in valid_ids:
+        if group_id in current_by_group:
+            continue
+        max_order = db.query(func.max(models.ExercisePbGroup.display_order)).filter(
+            models.ExercisePbGroup.pb_group_id == group_id
+        ).scalar()
+        db.add(models.ExercisePbGroup(
+            exercise_id=exercise_id,
+            pb_group_id=group_id,
+            display_order=(max_order + 1) if max_order is not None else 0,
+        ))
+
+
+def migrate_legacy_pb_memberships(db: Session):
+    """Copy assignments from the former single-group column, then clear it once."""
+    if not legacy_pb_group_column_existed:
+        return
+    rows = db.execute(
+        text("SELECT id, pb_group_id FROM exercises WHERE pb_group_id IS NOT NULL")
+    ).all()
+    for exercise_id, group_id in rows:
+        exists = db.query(models.ExercisePbGroup).filter_by(
+            exercise_id=exercise_id, pb_group_id=group_id
+        ).first()
+        if not exists and db.get(models.PbGroup, group_id):
+            max_order = db.query(func.max(models.ExercisePbGroup.display_order)).filter(
+                models.ExercisePbGroup.pb_group_id == group_id
+            ).scalar()
+            db.add(models.ExercisePbGroup(
+                exercise_id=exercise_id,
+                pb_group_id=group_id,
+                display_order=(max_order + 1) if max_order is not None else 0,
+            ))
+    db.execute(text("UPDATE exercises SET pb_group_id = NULL WHERE pb_group_id IS NOT NULL"))
+    db.commit()
+
+
+def normalize_pb_membership_order(db: Session):
+    """Compact legacy or sparse positions while preserving their current order."""
+    for (group_id,) in db.query(models.PbGroup.id).all():
+        query = db.query(models.ExercisePbGroup).join(
+            models.Exercise,
+            models.Exercise.id == models.ExercisePbGroup.exercise_id,
+        ).filter(
+            models.ExercisePbGroup.pb_group_id == group_id
+        )
+        if pb_membership_order_column_existed:
+            query = query.order_by(
+                models.ExercisePbGroup.display_order,
+                models.ExercisePbGroup.exercise_id,
+            )
+        else:
+            # Match the alphabetical order used by the UI before ordering existed.
+            query = query.order_by(models.Exercise.name, models.Exercise.id)
+        memberships = query.all()
+        for position, membership in enumerate(memberships):
+            membership.display_order = position
     db.commit()
 
 
@@ -178,6 +311,8 @@ def on_startup():
     try:
         seed_exercises(db)
         seed_pb_groups(db)
+        migrate_legacy_pb_memberships(db)
+        normalize_pb_membership_order(db)
     finally:
         db.close()
 
@@ -243,14 +378,42 @@ def reorder_pb_groups(data: schemas.PbGroupReorder, db: Session = Depends(get_db
     return list_pb_groups(db)
 
 
+@app.put("/api/pb-groups/{group_id}/exercises/reorder", status_code=204)
+def reorder_pb_group_exercises(
+    group_id: int,
+    data: schemas.PbGroupExerciseReorder,
+    db: Session = Depends(get_db),
+):
+    if not db.get(models.PbGroup, group_id):
+        raise HTTPException(404, "Grupo PB no encontrado")
+    memberships = db.query(models.ExercisePbGroup).filter(
+        models.ExercisePbGroup.pb_group_id == group_id
+    ).all()
+    current_ids = {membership.exercise_id for membership in memberships}
+    if (
+        len(data.exercise_ids) != len(set(data.exercise_ids))
+        or set(data.exercise_ids) != current_ids
+    ):
+        raise HTTPException(
+            400, "La lista debe incluir todos los ejercicios del grupo PB una sola vez"
+        )
+    order_by_id = {
+        exercise_id: order for order, exercise_id in enumerate(data.exercise_ids)
+    }
+    for membership in memberships:
+        membership.display_order = order_by_id[membership.exercise_id]
+    db.commit()
+    return None
+
+
 @app.delete("/api/pb-groups/{group_id}", status_code=204)
 def delete_pb_group(group_id: int, db: Session = Depends(get_db)):
     group = db.get(models.PbGroup, group_id)
     if not group:
         raise HTTPException(404, "Grupo PB no encontrado")
-    db.query(models.Exercise).filter(models.Exercise.pb_group_id == group_id).update(
-        {"pb_group_id": None}, synchronize_session=False
-    )
+    db.query(models.ExercisePbGroup).filter(
+        models.ExercisePbGroup.pb_group_id == group_id
+    ).delete(synchronize_session=False)
     db.delete(group)
     db.commit()
     return None
@@ -259,7 +422,8 @@ def delete_pb_group(group_id: int, db: Session = Depends(get_db)):
 # ---------- Exercises ----------
 @app.get("/api/exercises", response_model=list[schemas.ExerciseOut])
 def list_exercises(db: Session = Depends(get_db)):
-    return db.query(models.Exercise).order_by(models.Exercise.name).all()
+    exercises = db.query(models.Exercise).order_by(models.Exercise.name).all()
+    return [exercise_out(exercise, db) for exercise in exercises]
 
 
 @app.post("/api/exercises", response_model=schemas.ExerciseOut, status_code=201)
@@ -267,20 +431,20 @@ def create_exercise(data: schemas.ExerciseCreate, db: Session = Depends(get_db))
     exists = db.query(models.Exercise).filter(models.Exercise.name.ilike(data.name.strip())).first()
     if exists:
         raise HTTPException(400, "Ya existe un ejercicio con ese nombre")
-    if data.pb_group_id is not None and not db.get(models.PbGroup, data.pb_group_id):
-        raise HTTPException(404, "Grupo PB no encontrado")
+    group_ids = validate_pb_group_ids(data.pb_group_ids, db)
     ex = models.Exercise(
         name=data.name.strip(),
         muscle_group=data.muscle_group.strip(),
-        pb_group_id=data.pb_group_id,
         notes=data.notes,
         current_weight=data.current_weight,
         current_reps=data.current_reps,
     )
     db.add(ex)
+    db.flush()
+    replace_pb_memberships(ex.id, group_ids, db)
     db.commit()
     db.refresh(ex)
-    return ex
+    return exercise_out(ex, db)
 
 
 @app.patch("/api/exercises/{exercise_id}", response_model=schemas.ExerciseOut)
@@ -302,10 +466,8 @@ def update_exercise(exercise_id: int, data: schemas.ExerciseUpdate, db: Session 
         ex.name = name_clean
     if data.muscle_group is not None:
         ex.muscle_group = data.muscle_group.strip()
-    if "pb_group_id" in data.model_fields_set:
-        if data.pb_group_id is not None and not db.get(models.PbGroup, data.pb_group_id):
-            raise HTTPException(404, "Grupo PB no encontrado")
-        ex.pb_group_id = data.pb_group_id
+    if "pb_group_ids" in data.model_fields_set and data.pb_group_ids is not None:
+        replace_pb_memberships(exercise_id, data.pb_group_ids, db)
     if data.notes is not None:
         ex.notes = data.notes
     if data.current_weight is not None:
@@ -314,7 +476,7 @@ def update_exercise(exercise_id: int, data: schemas.ExerciseUpdate, db: Session 
         ex.current_reps = max(0, int(data.current_reps))
     db.commit()
     db.refresh(ex)
-    return ex
+    return exercise_out(ex, db)
 
 
 @app.delete("/api/exercises/{exercise_id}", status_code=204)
@@ -329,6 +491,9 @@ def delete_exercise(exercise_id: int, db: Session = Depends(get_db)):
             409,
             "No se puede eliminar un ejercicio que ya aparece en rutinas o sesiones",
         )
+    db.query(models.ExercisePbGroup).filter(
+        models.ExercisePbGroup.exercise_id == exercise_id
+    ).delete(synchronize_session=False)
     db.delete(ex)
     db.commit()
     return None

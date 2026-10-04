@@ -1,7 +1,7 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowDown, ArrowUp, BarChart3, BookOpen, Check, ChevronDown, CirclePlus, ClipboardList,
-  Dumbbell, FileText, ListPlus, LoaderCircle, Menu, NotebookPen, Pencil, Plus, Search, Settings, Trash2, X
+  Dumbbell, FileText, GripVertical, ListPlus, LoaderCircle, Menu, NotebookPen, Pencil, Plus, Search, Settings, Trash2, X
 } from "lucide-react";
 import { api } from "./api";
 import { filterProgress, formatDate, formatKg, epley1RM, weeklyMetrics } from "./lib";
@@ -62,8 +62,8 @@ export function App() {
   const createExercise = async (name: string, muscle: string) => {
     await api.createExercise(name, muscle); await reload(); notify("Ejercicio creado", "success"); haptic([10, 30, 10]);
   };
-  const updateExercisePR = async (id: number, current_weight: number, current_reps: number, notes: string, pb_group_id: number | null) => {
-    await api.updateExercise(id, { current_weight, current_reps, notes, pb_group_id });
+  const updateExercisePR = async (id: number, current_weight: number, current_reps: number, notes: string, pb_group_ids: number[]) => {
+    await api.updateExercise(id, { current_weight, current_reps, notes, pb_group_ids });
     await reload();
     notify("Marca actualizada", "success");
     haptic([10, 30, 10]);
@@ -120,9 +120,9 @@ export function App() {
 function Sidebar({ route, navigate, online }: { route: Route; navigate: (route: Route) => void; online: boolean }) {
   return <aside className="sidebar">
     <div className="brand"><div className="brand-icon"><Dumbbell size={18} /></div><div><strong>LIGHTWEIGHT</strong><span>OBSIDIAN ENGINE</span></div></div>
-    <div className={`db-status ${online ? "" : "offline"}`}><i />{online ? "SQLITE LOCAL ACTIVA" : "API NO DISPONIBLE"}</div>
+    <div className={`db-status ${online ? "" : "offline"}`}><i />{online ? "BASE DE DATOS ACTIVA" : "API NO DISPONIBLE"}</div>
     <nav>{routes.map(({ id, label, icon: Icon }) => <button className={route === id ? "nav-item active" : "nav-item"} onClick={() => navigate(id)} key={id}><Icon size={18} />{label}</button>)}</nav>
-    <div className="sidebar-footer"><span>MOTOR LOCAL</span><b>SQLite + API</b><span>SINCRONIZACIÓN</span><b>{online ? "Conectada" : "Sin red"}</b></div>
+    <div className="sidebar-footer"><span>PERSISTENCIA</span><b>SQL + API</b><span>SINCRONIZACIÓN</span><b>{online ? "Conectada" : "Sin red"}</b></div>
   </aside>;
 }
 
@@ -139,10 +139,10 @@ function BottomNav({ route, navigate }: { route: Route; navigate: (route: Route)
 
 
 function Topbar({ metrics }: { metrics: { volume: number; sets: number } }) {
-  return <header className="topbar"><div className="session-label">SESIÓN DE FUERZA <span>v2.0-OBSIDIAN</span></div><div className="header-metrics"><Metric label="VOLUMEN TOTAL (SEM)" value={`${formatKg(metrics.volume)} kg`} /><Metric label="SERIES COMPLETADAS" value={String(metrics.sets)} accent /></div><div className="athlete">Atleta Principal <span>Seguimiento local</span></div></header>;
+  return <header className="topbar"><div className="session-label">SESIÓN DE FUERZA <span>v2.0-OBSIDIAN</span></div><div className="header-metrics"><Metric label="VOLUMEN TOTAL (SEM)" value={`${formatKg(metrics.volume)} kg`} /><Metric label="SERIES COMPLETADAS" value={String(metrics.sets)} accent /></div><div className="athlete">Atleta Principal <span>Seguimiento conectado</span></div></header>;
 }
 function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) { return <div className="header-metric"><span>{label}</span><b className={accent ? "accent" : ""}>{value}</b></div>; }
-function Loading() { return <div className="loading"><LoaderCircle className="spin" size={24} />Cargando datos locales…</div>; }
+function Loading() { return <div className="loading"><LoaderCircle className="spin" size={24} />Cargando datos…</div>; }
 
 function PersonalBestsWidget({
   exercises,
@@ -154,7 +154,7 @@ function PersonalBestsWidget({
 }: {
   exercises: Exercise[];
   pbGroups: PbGroup[];
-  onUpdatePR: (id: number, weight: number, reps: number, notes: string, pbGroupId: number | null) => Promise<void>;
+  onUpdatePR: (id: number, weight: number, reps: number, notes: string, pbGroupIds: number[]) => Promise<void>;
   onRefresh: () => Promise<void>;
   notify: (text: string, kind?: ToastKind) => void;
   ask: (title: string, detail: string, action: () => Promise<void>) => void;
@@ -165,15 +165,24 @@ function PersonalBestsWidget({
   const [editWeight, setEditWeight] = useState("");
   const [editReps, setEditReps] = useState("");
   const [editNotes, setEditNotes] = useState("");
-  const [editPbGroupId, setEditPbGroupId] = useState("");
+  const [editPbGroupIds, setEditPbGroupIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dragging, setDragging] = useState<{ groupId: number; exerciseId: number } | null>(null);
+  const [draftOrders, setDraftOrders] = useState<Record<number, number[]>>({});
+  const draftOrdersRef = useRef<Record<number, number[]>>({});
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerOriginRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+  }, []);
 
   const startEdit = (ex: Exercise) => {
     setEditingId(ex.id);
     setEditWeight(ex.current_weight > 0 ? String(ex.current_weight) : "");
     setEditReps(ex.current_reps > 0 ? String(ex.current_reps) : "");
     setEditNotes(ex.notes ?? "");
-    setEditPbGroupId(ex.pb_group_id === null ? "" : String(ex.pb_group_id));
+    setEditPbGroupIds(ex.pb_group_ids);
   };
 
   const cancelEdit = () => {
@@ -181,7 +190,7 @@ function PersonalBestsWidget({
     setEditWeight("");
     setEditReps("");
     setEditNotes("");
-    setEditPbGroupId("");
+    setEditPbGroupIds([]);
   };
 
   const handleSave = async (id: number) => {
@@ -189,7 +198,7 @@ function PersonalBestsWidget({
     const r = parseInt(editReps, 10) || 0;
     setSaving(true);
     try {
-      await onUpdatePR(id, w, r, editNotes, editPbGroupId ? Number(editPbGroupId) : null);
+      await onUpdatePR(id, w, r, editNotes, editPbGroupIds);
       setEditingId(null);
     } finally {
       setSaving(false);
@@ -198,25 +207,106 @@ function PersonalBestsWidget({
 
   const pbNames = new Map(pbGroups.map((group) => [group.id, group.name]));
   const filtered = exercises.filter((ex) =>
-    `${ex.name} ${ex.muscle_group} ${ex.pb_group_id ? pbNames.get(ex.pb_group_id) ?? "" : ""}`.toLowerCase().includes(search.toLowerCase())
+    `${ex.name} ${ex.muscle_group} ${ex.pb_group_ids.map((id) => pbNames.get(id) ?? "").join(" ")}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const groups = [
-    ...pbGroups.map((group) => ({
-      key: String(group.id), label: group.name, emoji: group.emoji,
-      items: filtered.filter((exercise) => exercise.pb_group_id === group.id),
-    })),
-    { key: "ungrouped", label: "Sin grupo PB", emoji: "📋", items: filtered.filter((exercise) => exercise.pb_group_id === null) },
-  ].filter((group) => group.items.length > 0);
+  const orderedIdsForGroup = (groupId: number) => exercises
+    .filter((exercise) => exercise.pb_group_ids.includes(groupId))
+    .sort((a, b) => (a.pb_group_positions[groupId] ?? Number.MAX_SAFE_INTEGER)
+      - (b.pb_group_positions[groupId] ?? Number.MAX_SAFE_INTEGER) || a.id - b.id)
+    .map((exercise) => exercise.id);
 
-  const renderCard = (ex: Exercise) => {
+  const beginExerciseHold = (event: React.PointerEvent<HTMLElement>, groupId: number, exerciseId: number) => {
+    if (search || editingId === exerciseId || event.button !== 0) return;
+    if (!(event.target as HTMLElement).closest(".pb-drag-handle")) return;
+    const card = event.currentTarget;
+    const pointerId = event.pointerId;
+    pointerOriginRef.current = { x: event.clientX, y: event.clientY };
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      try { card.setPointerCapture(pointerId); } catch { /* pointer may already be released */ }
+      const next = { ...draftOrdersRef.current, [groupId]: orderedIdsForGroup(groupId) };
+      draftOrdersRef.current = next;
+      setDraftOrders(next);
+      setDragging({ groupId, exerciseId });
+      haptic(20);
+    }, 450);
+  };
+
+  const moveHeldExercise = (event: React.PointerEvent<HTMLElement>) => {
+    if (!dragging) {
+      const origin = pointerOriginRef.current;
+      if (origin && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 8) {
+        if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      return;
+    }
+    event.preventDefault();
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-pb-exercise-id]");
+    if (!target || Number(target.dataset.pbGroupId) !== dragging.groupId) return;
+    const targetId = Number(target.dataset.pbExerciseId);
+    if (!targetId || targetId === dragging.exerciseId) return;
+    const current = draftOrdersRef.current[dragging.groupId] ?? orderedIdsForGroup(dragging.groupId);
+    const from = current.indexOf(dragging.exerciseId);
+    const to = current.indexOf(targetId);
+    if (from < 0 || to < 0 || from === to) return;
+    const reordered = [...current];
+    reordered.splice(to, 0, reordered.splice(from, 1)[0]);
+    const next = { ...draftOrdersRef.current, [dragging.groupId]: reordered };
+    draftOrdersRef.current = next;
+    setDraftOrders(next);
+  };
+
+  const finishExerciseHold = async () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = null;
+    pointerOriginRef.current = null;
+    if (!dragging) return;
+    const { groupId } = dragging;
+    const exerciseIds = draftOrdersRef.current[groupId] ?? orderedIdsForGroup(groupId);
+    setDragging(null);
+    try {
+      await api.reorderPbGroupExercises(groupId, exerciseIds);
+      await onRefresh();
+      notify("Orden de ejercicios actualizado", "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "No se pudo guardar el orden", "error");
+    } finally {
+      draftOrdersRef.current = {};
+      setDraftOrders({});
+    }
+  };
+
+  const groups = pbGroups.map((group) => ({
+      key: String(group.id), label: group.name, emoji: group.emoji,
+      items: filtered.filter((exercise) => exercise.pb_group_ids.includes(group.id)).sort((a, b) => {
+        const draft = draftOrders[group.id];
+        if (draft) return draft.indexOf(a.id) - draft.indexOf(b.id);
+        return (a.pb_group_positions[group.id] ?? Number.MAX_SAFE_INTEGER)
+          - (b.pb_group_positions[group.id] ?? Number.MAX_SAFE_INTEGER) || a.id - b.id;
+      }),
+    })).filter((group) => group.items.length > 0);
+
+  const renderCard = (ex: Exercise, groupId: number) => {
     const isEditing = editingId === ex.id;
     const hasRecord = ex.current_weight > 0 && ex.current_reps > 0;
     const est1RM = hasRecord ? epley1RM(ex.current_weight, ex.current_reps) : 0;
 
     return (
-      <article className="pb-card" key={ex.id}>
+      <article
+        className={`pb-card ${dragging?.groupId === groupId && dragging.exerciseId === ex.id ? "dragging" : ""}`}
+        key={ex.id}
+        data-pb-group-id={groupId}
+        data-pb-exercise-id={ex.id}
+        onPointerDown={(event) => beginExerciseHold(event, groupId, ex.id)}
+        onPointerMove={moveHeldExercise}
+        onPointerUp={() => void finishExerciseHold()}
+        onPointerCancel={() => void finishExerciseHold()}
+        onContextMenu={(event) => event.preventDefault()}
+      >
         <div className="pb-card-top">
+          <span className="pb-drag-handle" title="Mantén pulsado y arrastra"><GripVertical size={15} /></span>
           <h3 className="pb-card-name">{ex.name}</h3>
           {!isEditing && (
             <button
@@ -257,13 +347,22 @@ function PersonalBestsWidget({
                 />
               </label>
             </div>
-            <label className="pb-edit-field pb-group-field">
-              <span>GRUPO PB</span>
-              <select value={editPbGroupId} onChange={(event) => setEditPbGroupId(event.target.value)}>
-                <option value="">Sin grupo PB</option>
-                {pbGroups.map((group) => <option value={group.id} key={group.id}>{group.emoji} {group.name}</option>)}
-              </select>
-            </label>
+            <fieldset className="pb-group-field">
+              <legend>GRUPOS PB</legend>
+              <div className="pb-group-options">
+                {pbGroups.map((group) => <label key={group.id}>
+                  <input
+                    type="checkbox"
+                    checked={editPbGroupIds.includes(group.id)}
+                    onChange={(event) => setEditPbGroupIds((current) => event.target.checked
+                      ? [...current, group.id]
+                      : current.filter((id) => id !== group.id))}
+                  />
+                  <span>{group.emoji} {group.name}</span>
+                </label>)}
+                {pbGroups.length === 0 && <span className="pb-group-options-empty">No hay grupos PB.</span>}
+              </div>
+            </fieldset>
             <label className="pb-edit-field pb-notes-field">
               <span>NOTAS</span>
               <input
@@ -344,7 +443,7 @@ function PersonalBestsWidget({
       {managingGroups && <PbGroupManager groups={pbGroups} exercises={exercises} onRefresh={onRefresh} notify={notify} ask={ask} />}
 
       {groups.length === 0 && (
-        <div className="empty-state">No hay ejercicios que coincidan con la búsqueda.</div>
+        <div className="empty-state">{search ? "No hay ejercicios que coincidan con la búsqueda." : "No hay ejercicios asignados a grupos PB."}</div>
       )}
 
       {groups.map(({ key, label, emoji, items }) => (
@@ -355,7 +454,7 @@ function PersonalBestsWidget({
             <span className="pb-group-count">{items.length}</span>
           </div>
           <div className="pb-grid">
-            {items.map(renderCard)}
+            {items.map((exercise) => renderCard(exercise, Number(key)))}
           </div>
         </div>
       ))}
@@ -423,11 +522,19 @@ function PbGroupManager({ groups, exercises, onRefresh, notify, ask }: {
         onToggle={() => setExpandedGroupId((current) => current === group.id ? null : group.id)}
         onMove={(offset) => void move(index, offset).catch(() => undefined)}
         onSave={async (name, emoji) => { await run(() => api.updatePbGroup(group.id, { name, emoji }), "Grupo PB actualizado"); }}
-        onAssign={async (exerciseId) => { await run(() => api.updateExercise(exerciseId, { pb_group_id: group.id }), "Ejercicio añadido al grupo PB"); }}
-        onRemove={async (exerciseId) => { await run(() => api.updateExercise(exerciseId, { pb_group_id: null }), "Ejercicio quitado del grupo PB"); }}
+        onAssign={async (exerciseId) => {
+          const exercise = exercises.find((item) => item.id === exerciseId);
+          if (!exercise) return;
+          await run(() => api.updateExercise(exerciseId, { pb_group_ids: [...exercise.pb_group_ids, group.id] }), "Ejercicio añadido al grupo PB");
+        }}
+        onRemove={async (exerciseId) => {
+          const exercise = exercises.find((item) => item.id === exerciseId);
+          if (!exercise) return;
+          await run(() => api.updateExercise(exerciseId, { pb_group_ids: exercise.pb_group_ids.filter((id) => id !== group.id) }), "Ejercicio quitado del grupo PB");
+        }}
         onDelete={() => ask(
           "¿Eliminar grupo PB?",
-          `Los ejercicios de “${group.name}” quedarán en Sin grupo PB. Su grupo muscular no cambiará.`,
+          `Se quitará “${group.name}” de sus ejercicios. Las demás asignaciones PB y el grupo muscular no cambiarán.`,
           async () => { await run(() => api.deletePbGroup(group.id), "Grupo PB eliminado"); }
         )}
       />)}
@@ -459,14 +566,34 @@ function PbGroupEditorRow({ group, exercises, groups, first, last, busy, expande
   const [name, setName] = useState(group.name);
   const [emoji, setEmoji] = useState(group.emoji);
   const [exerciseId, setExerciseId] = useState("");
-  const changed = name.trim() !== group.name || emoji.trim() !== group.emoji;
-  const assigned = exercises.filter((exercise) => exercise.pb_group_id === group.id);
-  const available = exercises.filter((exercise) => exercise.pb_group_id !== group.id);
+  const assigned = exercises.filter((exercise) => exercise.pb_group_ids.includes(group.id));
+  const available = exercises.filter((exercise) => !exercise.pb_group_ids.includes(group.id));
   const groupNames = new Map(groups.map((item) => [item.id, item.name]));
   useEffect(() => { setName(group.name); setEmoji(group.emoji); }, [group.name, group.emoji]);
 
+  const saveIfChanged = async () => {
+    const nextName = name.trim();
+    const nextEmoji = emoji.trim() || "💪";
+    if (!nextName) {
+      setName(group.name);
+      return;
+    }
+    if (nextName === group.name && nextEmoji === group.emoji) return;
+    try {
+      await onSave(nextName, nextEmoji);
+    } catch {
+      setName(group.name);
+      setEmoji(group.emoji);
+    }
+  };
+
+  const saveOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") event.currentTarget.blur();
+  };
+
   const assign = async () => {
-    if (!exerciseId) return;
+    const selected = available.find((exercise) => String(exercise.id) === exerciseId);
+    if (!selected) return;
     try {
       await onAssign(Number(exerciseId));
       setExerciseId("");
@@ -479,11 +606,10 @@ function PbGroupEditorRow({ group, exercises, groups, first, last, busy, expande
         <button className="icon-button-sm" type="button" disabled={busy || first} onClick={() => onMove(-1)} aria-label={`Subir ${group.name}`}><ArrowUp size={14} /></button>
         <button className="icon-button-sm" type="button" disabled={busy || last} onClick={() => onMove(1)} aria-label={`Bajar ${group.name}`}><ArrowDown size={14} /></button>
       </div>
-      <input className="group-emoji-input" value={emoji} onChange={(event) => setEmoji(event.target.value)} aria-label={`Emoji de ${group.name}`} maxLength={10} />
-      <input value={name} onChange={(event) => setName(event.target.value)} aria-label={`Nombre de ${group.name}`} maxLength={50} />
+      <input className="group-emoji-input" value={emoji} onChange={(event) => setEmoji(event.target.value)} onBlur={() => void saveIfChanged()} onKeyDown={saveOnEnter} disabled={busy} aria-label={`Emoji de ${group.name}`} maxLength={10} />
+      <input value={name} onChange={(event) => setName(event.target.value)} onBlur={() => void saveIfChanged()} onKeyDown={saveOnEnter} disabled={busy} aria-label={`Nombre de ${group.name}`} maxLength={50} />
       <span className="group-manager-count" title={`${assigned.length} ejercicios`}>{assigned.length}</span>
       <button className={`icon-button-sm ${expanded ? "primary" : ""}`} type="button" disabled={busy} onClick={onToggle} aria-label={`Gestionar ejercicios de ${group.name}`} aria-expanded={expanded}><ListPlus size={14} /></button>
-      <button className="icon-button-sm primary" type="button" disabled={busy || !changed || !name.trim()} onClick={() => void onSave(name.trim(), emoji.trim() || "💪").catch(() => undefined)} aria-label={`Guardar ${group.name}`}><Check size={14} /></button>
       <button className="icon-button-sm danger" type="button" disabled={busy} onClick={onDelete} aria-label={`Eliminar ${group.name}`}><Trash2 size={14} /></button>
     </div>
     {expanded && <div className="group-exercise-manager">
@@ -495,30 +621,51 @@ function PbGroupEditorRow({ group, exercises, groups, first, last, busy, expande
         {assigned.length === 0 && <span className="group-exercise-empty">No hay ejercicios en este grupo PB.</span>}
       </div>
       <div className="group-exercise-add">
-        <select value={exerciseId} onChange={(event) => setExerciseId(event.target.value)} aria-label={`Añadir ejercicio a ${group.name}`}>
-          <option value="">Añadir o mover ejercicio…</option>
+        <select value={exerciseId} onChange={(event) => setExerciseId(event.target.value)} aria-label={`Añadir ejercicio a ${group.name}`} disabled={busy || available.length === 0}>
+          <option value="">{available.length ? "Añadir ejercicio…" : "Todos los ejercicios ya están añadidos"}</option>
           {available.map((exercise) => <option value={exercise.id} key={exercise.id}>
-            {exercise.name} · {exercise.pb_group_id ? groupNames.get(exercise.pb_group_id) ?? "Otro grupo PB" : "Sin grupo PB"}
+            {exercise.name} · {exercise.pb_group_ids.length
+              ? `También en ${exercise.pb_group_ids.map((id) => groupNames.get(id)).filter(Boolean).join(", ")}`
+              : "Sin otros grupos PB"}
           </option>)}
         </select>
-        <button className="button secondary" type="button" disabled={busy || !exerciseId} onClick={() => void assign()}><Plus size={14} />Añadir</button>
+        <button className="button secondary" type="button" disabled={busy || !available.some((exercise) => String(exercise.id) === exerciseId)} onClick={() => void assign()}><Plus size={14} />Añadir</button>
       </div>
     </div>}
   </div>;
 }
 
 function TrainView({ exercises, pbGroups, routines, activeSession, onStart, onCreateExercise, onUpdateExercisePR, onDeleteExercise, onRefresh, onSetActive, onRefreshSession, onAddSet, onDeleteSet, notify, ask }: {
-  exercises: Exercise[]; pbGroups: PbGroup[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number, notes: string, pbGroupId: number | null) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
+  exercises: Exercise[]; pbGroups: PbGroup[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number, notes: string, pbGroupIds: number[]) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
 }) {
   const [name, setName] = useState(""); const [routineId, setRoutineId] = useState(""); const [addExerciseId, setAddExerciseId] = useState("");
-  const [newName, setNewName] = useState(""); const [newMuscle, setNewMuscle] = useState("");
+  const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const start = async (fromRoutine: boolean) => { await onStart({ name, ...(fromRoutine && routineId ? { routine_id: Number(routineId) } : {}) }); setName(""); };
   return <PageTitle eyebrow="MÓDULO DE ENTRENAMIENTO" title="Sesión de fuerza" description="Registro rápido de carga, repeticiones y notas de entrenamiento." actions={null}>
     <PersonalBestsWidget exercises={exercises} pbGroups={pbGroups} onUpdatePR={onUpdateExercisePR} onRefresh={onRefresh} notify={notify} ask={ask} />
     {!activeSession ? <section className="panel start-panel"><div><span className="eyebrow">NUEVA SESIÓN</span><h2>Empieza a registrar tu entrenamiento</h2><p>Elige una rutina o inicia una sesión libre.</p></div><div className="start-controls"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre opcional" /><select value={routineId} onChange={(event) => setRoutineId(event.target.value)}><option value="">Selecciona una rutina</option>{routines.map((routine) => <option value={routine.id} key={routine.id}>{routine.name}</option>)}</select><button className="button secondary" onClick={() => void start(false)}>Sesión libre</button><button className="button primary" disabled={!routineId} onClick={() => void start(true)}><Dumbbell size={16} />Desde rutina</button></div></section> : <ActiveSession session={activeSession} exercises={exercises} close={() => onSetActive(null)} onRefresh={onRefreshSession} onAddSet={onAddSet} onDeleteSet={onDeleteSet} notify={notify} ask={ask} />}
-    <div className="split-grid"><section className="panel"><div className="section-heading"><div><h2>Catálogo de ejercicios</h2><p>{exercises.length} disponibles en tu base local.</p></div></div><form className="inline-form" onSubmit={(event) => { event.preventDefault(); if (!newName.trim()) return; void onCreateExercise(newName.trim(), newMuscle).then(() => { setNewName(""); setNewMuscle(""); }).catch((error: unknown) => notify(error instanceof Error ? error.message : "No se pudo crear el ejercicio", "error")); }}><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Nombre del ejercicio" aria-label="Nombre del ejercicio" /><select value={newMuscle} onChange={(event) => setNewMuscle(event.target.value)} aria-label="Grupo muscular"><option value="">Sin especificar</option><option value="Pecho">Pecho</option><option value="Espalda">Espalda</option><option value="Hombro">Hombro</option><option value="Brazo">Brazo</option><option value="Pierna">Pierna</option><option value="Core">Core</option><option value="Cuerpo completo">Cuerpo completo</option><option value="Cardio">Cardio</option><option value="Otro">Otro</option></select><button className="icon-button primary" aria-label="Crear ejercicio"><Plus size={17} /></button></form><div className="exercise-chips">{exercises.map((exercise) => <div className="exercise-chip" key={exercise.id}><span>{exercise.name}<small>{exercise.muscle_group || "General"}</small></span><button className="chip-delete" aria-label={`Eliminar ${exercise.name}`} onClick={() => ask("¿Eliminar ejercicio?", `Se eliminará “${exercise.name}” del catálogo. Solo se permite si aún no se ha usado en una rutina o sesión.`, async () => onDeleteExercise(exercise.id))}><Trash2 size={13} /></button></div>)}</div></section>
-    <section className="panel compact-note"><NotebookPen size={20} /><h3>Sesiones locales</h3><p>Las series se guardan directamente en SQLite a través de la API local.</p><button className="text-button" onClick={() => void onRefresh()}>Actualizar datos</button></section></div>
+    <div className="split-grid"><section className="panel"><div className="section-heading"><div><h2>Catálogo de ejercicios</h2><p>{exercises.length} disponibles en la base de datos conectada.</p></div><button className="button primary" onClick={() => setExerciseModalOpen(true)}><Plus size={15} />Nuevo ejercicio</button></div><div className="exercise-chips">{exercises.map((exercise) => <div className="exercise-chip" key={exercise.id}><span>{exercise.name}<small>{exercise.muscle_group || "General"}</small></span><button className="chip-delete" aria-label={`Eliminar ${exercise.name}`} onClick={() => ask("¿Eliminar ejercicio?", `Se eliminará “${exercise.name}” del catálogo. Solo se permite si aún no se ha usado en una rutina o sesión.`, async () => onDeleteExercise(exercise.id))}><Trash2 size={13} /></button></div>)}</div></section>
+    <section className="panel compact-note"><NotebookPen size={20} /><h3>Datos sincronizados</h3><p>Ejercicios y series se guardan mediante la API en la base configurada: Neon/PostgreSQL en producción o SQLite en local.</p><button className="text-button" onClick={() => void onRefresh()}>Actualizar datos</button></section></div>
+    {exerciseModalOpen && <ExerciseCreateDialog onClose={() => setExerciseModalOpen(false)} onSubmit={async (exerciseName, muscle) => { await onCreateExercise(exerciseName, muscle); setExerciseModalOpen(false); }} notify={notify} />}
   </PageTitle>;
+}
+
+function ExerciseCreateDialog({ onClose, onSubmit, notify }: { onClose: () => void; onSubmit: (name: string, muscle: string) => Promise<void>; notify: (text: string, kind?: ToastKind) => void }) {
+  const [name, setName] = useState("");
+  const [muscle, setMuscle] = useState("");
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onSubmit(name.trim(), muscle);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "No se pudo crear el ejercicio", "error");
+      setSaving(false);
+    }
+  };
+  return <div className="modal-backdrop"><form className="dialog" onSubmit={(event) => void submit(event)}><div className="dialog-head"><h2>Nuevo ejercicio</h2><button type="button" className="icon-button" onClick={onClose} aria-label="Cerrar"><X size={17} /></button></div><p>Añade el ejercicio al catálogo. Después podrás incluirlo en uno o varios grupos PB.</p><label>Nombre<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Press inclinado" /></label><label>Grupo muscular<select value={muscle} onChange={(event) => setMuscle(event.target.value)}><option value="">Sin especificar</option><option value="Pecho">Pecho</option><option value="Espalda">Espalda</option><option value="Hombro">Hombro</option><option value="Brazo">Brazo</option><option value="Pierna">Pierna</option><option value="Core">Core</option><option value="Cuerpo completo">Cuerpo completo</option><option value="Cardio">Cardio</option><option value="Otro">Otro</option></select></label><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose} disabled={saving}>Cancelar</button><button className="button primary" disabled={saving || !name.trim()}>{saving ? "Creando…" : "Crear ejercicio"}</button></div></form></div>;
 }
 
 function ActiveSession({ session, exercises, close, onRefresh, onAddSet, onDeleteSet, notify, ask }: { session: WorkoutSession; exercises: Exercise[]; close: () => void; onRefresh: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void }) {

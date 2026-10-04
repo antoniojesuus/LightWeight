@@ -13,21 +13,30 @@ describe("api client", () => {
     }));
   });
 
-  it("asigna un ejercicio a un grupo PB independiente", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, pb_group_id: 4 }), { status: 200 }));
+  it("guarda el orden de ejercicios dentro de un grupo PB", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
-    await api.updateExercise(1, { pb_group_id: 4 });
+    await api.reorderPbGroupExercises(4, [8, 3, 5]);
+    expect(fetchMock).toHaveBeenCalledWith("/api/pb-groups/4/exercises/reorder", expect.objectContaining({
+      method: "PUT", body: JSON.stringify({ exercise_ids: [8, 3, 5] })
+    }));
+  });
+
+  it("asigna un ejercicio a varios grupos PB independientes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, pb_group_ids: [4, 7] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await api.updateExercise(1, { pb_group_ids: [4, 7] });
     expect(fetchMock).toHaveBeenCalledWith("/api/exercises/1", expect.objectContaining({
-      method: "PATCH", body: JSON.stringify({ pb_group_id: 4 })
+      method: "PATCH", body: JSON.stringify({ pb_group_ids: [4, 7] })
     }));
   });
 
   it("quita un ejercicio del grupo PB sin eliminarlo", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, pb_group_id: null }), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1, pb_group_ids: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await api.updateExercise(1, { pb_group_id: null });
+    await api.updateExercise(1, { pb_group_ids: [] });
     expect(fetchMock).toHaveBeenCalledWith("/api/exercises/1", expect.objectContaining({
-      method: "PATCH", body: JSON.stringify({ pb_group_id: null })
+      method: "PATCH", body: JSON.stringify({ pb_group_ids: [] })
     }));
   });
 
@@ -70,5 +79,12 @@ describe("api client", () => {
   it("expone el detalle del backend cuando una mutación falla", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "Rutina no encontrada" }), { status: 404 })));
     await expect(api.deleteRoutine(99)).rejects.toThrow("Rutina no encontrada");
+  });
+
+  it("explica claramente cuando la API local no está disponible", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    await expect(api.createPbGroup("Pechito", "💪")).rejects.toThrow(
+      "No se pudo conectar con la API. Comprueba que el servidor local está en marcha."
+    );
   });
 });

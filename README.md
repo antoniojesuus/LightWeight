@@ -2,7 +2,7 @@
 
 App local de seguimiento de entrenamientos en el gimnasio.
 
-**Stack:** FastAPI + SQLite (SQLAlchemy) + React + TypeScript + Vite + Tailwind CSS + Chart.js.
+**Stack:** FastAPI + SQLAlchemy (SQLite local / PostgreSQL-Neon via `DATABASE_URL`) + React + TypeScript + Vite + Tailwind CSS + Chart.js.
 
 ## Estructura
 
@@ -10,7 +10,7 @@ App local de seguimiento de entrenamientos en el gimnasio.
 02_LightWeight/
 ├── backend/
 │   ├── __init__.py
-│   ├── database.py   # engine SQLite + SessionLocal + Base
+│   ├── database.py   # engine SQLite/PostgreSQL + SessionLocal + Base
 │   ├── models.py     # Exercise, Routine, RoutineExercise, WorkoutSession, SessionExercise, SetLog
 │   ├── schemas.py    # Pydantic
 │   └── main.py       # FastAPI + endpoints + sirve frontend
@@ -25,8 +25,9 @@ App local de seguimiento de entrenamientos en el gimnasio.
 
 ## Modelo de datos
 
-- **exercises**: catálogo (`name` único, `muscle_group`, `pb_group_id`, `notes`).
+- **exercises**: catálogo (`name` único, `muscle_group`, `notes`).
 - **pb_groups**: agrupaciones personalizables del widget de marcas, independientes del grupo muscular.
+- **exercise_pb_groups**: relación muchos-a-muchos entre ejercicios y grupos PB.
 - **routines** + **routine_exercises**: planificación (`target_sets/reps/weight`, `position`, `notes`).
 - **workout_sessions**: sesión real (`routine_id` opcional, `date`, `notes` global).
 - **session_exercises**: ejercicio en sesión (permite añadir/quitar sobre la marcha, `notes` por ejercicio).

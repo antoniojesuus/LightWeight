@@ -1,10 +1,15 @@
 import type { Exercise, LastExercise, PbGroup, ProgressPoint, Routine, SetLog, WorkoutSession } from "./types";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init.headers }
-  });
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init.headers }
+    });
+  } catch {
+    throw new Error("No se pudo conectar con la API. Comprueba que el servidor local está en marcha.");
+  }
   if (!response.ok) {
     let detail = response.statusText;
     try { detail = (await response.json()).detail || detail; } catch { /* response is not JSON */ }
@@ -24,6 +29,9 @@ export const api = {
   reorderPbGroups: (ids: number[]) => request<PbGroup[]>("/api/pb-groups/reorder", {
     method: "PUT", body: JSON.stringify({ ids })
   }),
+  reorderPbGroupExercises: (groupId: number, exerciseIds: number[]) => request<void>(`/api/pb-groups/${groupId}/exercises/reorder`, {
+    method: "PUT", body: JSON.stringify({ exercise_ids: exerciseIds })
+  }),
   deletePbGroup: (id: number) => request<void>(`/api/pb-groups/${id}`, { method: "DELETE" }),
   exercises: () => request<Exercise[]>("/api/exercises"),
   createExercise: (name: string, muscle_group: string, current_weight = 0, current_reps = 0) =>
@@ -31,7 +39,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, muscle_group, current_weight, current_reps })
     }),
-  updateExercise: (id: number, data: { name?: string; muscle_group?: string; pb_group_id?: number | null; notes?: string; current_weight?: number; current_reps?: number }) =>
+  updateExercise: (id: number, data: { name?: string; muscle_group?: string; pb_group_ids?: number[]; notes?: string; current_weight?: number; current_reps?: number }) =>
     request<Exercise>(`/api/exercises/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteExercise: (id: number) => request<void>(`/api/exercises/${id}`, { method: "DELETE" }),
   routines: () => request<Routine[]>("/api/routines"),
