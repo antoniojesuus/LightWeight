@@ -1,10 +1,10 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity, ArrowDown, ArrowUp, BarChart3, BookOpen, Check, ChevronDown, CirclePlus, ClipboardList,
-  Dumbbell, FileText, GripVertical, ListPlus, LoaderCircle, Menu, NotebookPen, Pencil, Plus, Search, Settings, Trash2, X
+  Dumbbell, FileText, GripVertical, ListPlus, LoaderCircle, Menu, Pencil, Plus, Search, Settings, Trash2, X
 } from "lucide-react";
 import { api } from "./api";
-import { filterProgress, formatDate, formatKg, epley1RM, weeklyMetrics } from "./lib";
+import { filterProgress, formatDate, formatKg, epley1RM } from "./lib";
 import { ProgressCharts } from "./ProgressCharts";
 import type { Exercise, LastExercise, PbGroup, ProgressPoint, Route, Routine, SessionExercise, WorkoutSession } from "./types";
 
@@ -54,7 +54,6 @@ export function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
   const navigate = (next: Route) => { window.location.hash = `#/${next}`; haptic(); };
-  const metrics = useMemo(() => weeklyMetrics(sessions), [sessions]);
   const selectedRoutine = routines.find((routine) => routine.id === selectedRoutineId) ?? null;
   const refreshSession = async (id: number) => { const next = await api.session(id); setActiveSession(next); await reload(); return next; };
   const ask = (title: string, detail: string, action: () => Promise<void>) => setConfirm({ title, detail, action });
@@ -104,10 +103,9 @@ export function App() {
     <Sidebar route={route} navigate={navigate} online={online} />
     <BottomNav route={route} navigate={navigate} />
     <main className="main-area">
-      <Topbar metrics={metrics} />
       <div className="page-content">
-        {loading ? <Loading /> : route === "entrenar" ? <TrainView exercises={exercises} pbGroups={pbGroups} routines={routines} activeSession={activeSession} onStart={startSession} onCreateExercise={createExercise} onUpdateExercisePR={updateExercisePR} onDeleteExercise={deleteExercise} onRefresh={reload} onSetActive={setActiveSession} onRefreshSession={refreshSession} onAddSet={addSet} onDeleteSet={deleteSet} notify={notify} ask={ask} /> : null}
-        {!loading && route === "rutinas" ? <RoutinesView exercises={exercises} routines={routines} selected={selectedRoutine} onSelect={setSelectedRoutineId} onCreate={createRoutine} onUpdate={updateRoutine} onDelete={deleteRoutine} onReload={reload} onStart={startSession} ask={ask} notify={notify} /> : null}
+        {loading ? <Loading /> : route === "entrenar" ? <TrainView exercises={exercises} pbGroups={pbGroups} routines={routines} activeSession={activeSession} onStart={startSession} onUpdateExercisePR={updateExercisePR} onRefresh={reload} onSetActive={setActiveSession} onRefreshSession={refreshSession} onAddSet={addSet} onDeleteSet={deleteSet} notify={notify} ask={ask} /> : null}
+        {!loading && route === "rutinas" ? <RoutinesView exercises={exercises} routines={routines} selected={selectedRoutine} onSelect={setSelectedRoutineId} onCreate={createRoutine} onUpdate={updateRoutine} onDelete={deleteRoutine} onCreateExercise={createExercise} onDeleteExercise={deleteExercise} onReload={reload} onStart={startSession} ask={ask} notify={notify} /> : null}
         {!loading && route === "historial" ? <HistoryView sessions={sessions} routines={routines} onReload={reload} ask={ask} /> : null}
         {!loading && route === "progreso" ? <ProgressView exercises={exercises} /> : null}
       </div>
@@ -138,9 +136,6 @@ function BottomNav({ route, navigate }: { route: Route; navigate: (route: Route)
 }
 
 
-function Topbar({ metrics }: { metrics: { volume: number; sets: number } }) {
-  return <header className="topbar"><div className="session-label">SESIÓN DE FUERZA <span>v2.0-OBSIDIAN</span></div><div className="header-metrics"><Metric label="VOLUMEN TOTAL (SEM)" value={`${formatKg(metrics.volume)} kg`} /><Metric label="SERIES COMPLETADAS" value={String(metrics.sets)} accent /></div><div className="athlete">Atleta Principal <span>Seguimiento conectado</span></div></header>;
-}
 function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) { return <div className="header-metric"><span>{label}</span><b className={accent ? "accent" : ""}>{value}</b></div>; }
 function Loading() { return <div className="loading"><LoaderCircle className="spin" size={24} />Cargando datos…</div>; }
 
@@ -167,6 +162,7 @@ function PersonalBestsWidget({
   const [editNotes, setEditNotes] = useState("");
   const [editPbGroupIds, setEditPbGroupIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<number[]>([]);
   const [dragging, setDragging] = useState<{ groupId: number; exerciseId: number } | null>(null);
   const [draftOrders, setDraftOrders] = useState<Record<number, number[]>>({});
   const draftOrdersRef = useRef<Record<number, number[]>>({});
@@ -451,11 +447,19 @@ function PersonalBestsWidget({
           <div className="pb-group-header">
             <span className="pb-group-emoji">{emoji}</span>
             <span className="pb-group-label">{label}</span>
-            <span className="pb-group-count">{items.length}</span>
+            <button
+              className="pb-group-toggle"
+              type="button"
+              aria-label={`${collapsedGroupIds.includes(Number(key)) ? "Expandir" : "Minimizar"} ${label}`}
+              aria-expanded={!collapsedGroupIds.includes(Number(key))}
+              onClick={() => setCollapsedGroupIds((current) => current.includes(Number(key))
+                ? current.filter((id) => id !== Number(key))
+                : [...current, Number(key)])}
+            ><ChevronDown size={17} className={collapsedGroupIds.includes(Number(key)) ? "collapsed" : ""} /></button>
           </div>
-          <div className="pb-grid">
+          {!collapsedGroupIds.includes(Number(key)) && <div className="pb-grid">
             {items.map((exercise) => renderCard(exercise, Number(key)))}
-          </div>
+          </div>}
         </div>
       ))}
     </section>
@@ -635,18 +639,14 @@ function PbGroupEditorRow({ group, exercises, groups, first, last, busy, expande
   </div>;
 }
 
-function TrainView({ exercises, pbGroups, routines, activeSession, onStart, onCreateExercise, onUpdateExercisePR, onDeleteExercise, onRefresh, onSetActive, onRefreshSession, onAddSet, onDeleteSet, notify, ask }: {
-  exercises: Exercise[]; pbGroups: PbGroup[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number, notes: string, pbGroupIds: number[]) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
+function TrainView({ exercises, pbGroups, routines, activeSession, onStart, onUpdateExercisePR, onRefresh, onSetActive, onRefreshSession, onAddSet, onDeleteSet, notify, ask }: {
+  exercises: Exercise[]; pbGroups: PbGroup[]; routines: Routine[]; activeSession: WorkoutSession | null; onStart: (data: { name?: string; routine_id?: number }) => Promise<void>; onUpdateExercisePR: (id: number, current_weight: number, current_reps: number, notes: string, pbGroupIds: number[]) => Promise<void>; onRefresh: () => Promise<void>; onSetActive: (session: WorkoutSession | null) => void; onRefreshSession: (id: number) => Promise<WorkoutSession>; onAddSet: (exercise: SessionExercise, weight: number, reps: number) => Promise<void>; onDeleteSet: (exercise: SessionExercise, id: number) => Promise<void>; notify: (text: string, kind?: ToastKind) => void; ask: (title: string, detail: string, action: () => Promise<void>) => void;
 }) {
-  const [name, setName] = useState(""); const [routineId, setRoutineId] = useState(""); const [addExerciseId, setAddExerciseId] = useState("");
-  const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
+  const [name, setName] = useState(""); const [routineId, setRoutineId] = useState("");
   const start = async (fromRoutine: boolean) => { await onStart({ name, ...(fromRoutine && routineId ? { routine_id: Number(routineId) } : {}) }); setName(""); };
   return <PageTitle eyebrow="MÓDULO DE ENTRENAMIENTO" title="Sesión de fuerza" description="Registro rápido de carga, repeticiones y notas de entrenamiento." actions={null}>
     <PersonalBestsWidget exercises={exercises} pbGroups={pbGroups} onUpdatePR={onUpdateExercisePR} onRefresh={onRefresh} notify={notify} ask={ask} />
     {!activeSession ? <section className="panel start-panel"><div><span className="eyebrow">NUEVA SESIÓN</span><h2>Empieza a registrar tu entrenamiento</h2><p>Elige una rutina o inicia una sesión libre.</p></div><div className="start-controls"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre opcional" /><select value={routineId} onChange={(event) => setRoutineId(event.target.value)}><option value="">Selecciona una rutina</option>{routines.map((routine) => <option value={routine.id} key={routine.id}>{routine.name}</option>)}</select><button className="button secondary" onClick={() => void start(false)}>Sesión libre</button><button className="button primary" disabled={!routineId} onClick={() => void start(true)}><Dumbbell size={16} />Desde rutina</button></div></section> : <ActiveSession session={activeSession} exercises={exercises} close={() => onSetActive(null)} onRefresh={onRefreshSession} onAddSet={onAddSet} onDeleteSet={onDeleteSet} notify={notify} ask={ask} />}
-    <div className="split-grid"><section className="panel"><div className="section-heading"><div><h2>Catálogo de ejercicios</h2><p>{exercises.length} disponibles en la base de datos conectada.</p></div><button className="button primary" onClick={() => setExerciseModalOpen(true)}><Plus size={15} />Nuevo ejercicio</button></div><div className="exercise-chips">{exercises.map((exercise) => <div className="exercise-chip" key={exercise.id}><span>{exercise.name}<small>{exercise.muscle_group || "General"}</small></span><button className="chip-delete" aria-label={`Eliminar ${exercise.name}`} onClick={() => ask("¿Eliminar ejercicio?", `Se eliminará “${exercise.name}” del catálogo. Solo se permite si aún no se ha usado en una rutina o sesión.`, async () => onDeleteExercise(exercise.id))}><Trash2 size={13} /></button></div>)}</div></section>
-    <section className="panel compact-note"><NotebookPen size={20} /><h3>Datos sincronizados</h3><p>Ejercicios y series se guardan mediante la API en la base configurada: Neon/PostgreSQL en producción o SQLite en local.</p><button className="text-button" onClick={() => void onRefresh()}>Actualizar datos</button></section></div>
-    {exerciseModalOpen && <ExerciseCreateDialog onClose={() => setExerciseModalOpen(false)} onSubmit={async (exerciseName, muscle) => { await onCreateExercise(exerciseName, muscle); setExerciseModalOpen(false); }} notify={notify} />}
   </PageTitle>;
 }
 
@@ -686,13 +686,14 @@ function SessionExerciseCard({ exercise, onRefresh, sessionId, onAddSet, onDelet
   return <article className="exercise-card"><div className="exercise-card-head"><div><h3>{exercise.exercise_name}</h3><span className="mono">{exercise.sets.length} SERIES · {formatKg(exercise.sets.reduce((sum, set) => sum + set.volume, 0))} KG VOL.</span></div><button className="icon-button" aria-label="Quitar ejercicio" onClick={() => ask("¿Quitar ejercicio?", "Se eliminarán también sus series de esta sesión.", async () => { await api.deleteSessionExercise(exercise.id); await onRefresh(sessionId); })}><X size={17} /></button></div><div className="exercise-notes"><input value={notes} onChange={(event) => setNotes(event.target.value)} onBlur={() => void save()} placeholder="Nota técnica del ejercicio…" /></div><table><thead><tr><th>SET</th><th>CARGA</th><th>REPS</th><th>VOLUMEN</th><th /></tr></thead><tbody>{exercise.sets.map((set) => <tr key={set.id} className={set.id < 0 ? "pending" : ""}><td>{set.set_number}</td><td>{formatKg(set.weight)} kg</td><td>{set.reps}</td><td>{formatKg(set.volume)} kg</td><td><button className="row-action" disabled={set.id < 0} onClick={() => void onDeleteSet(exercise, set.id)}><Trash2 size={14} /></button></td></tr>)}</tbody></table><div className="set-form"><input type="number" min="0" step="0.5" value={weight} onChange={(event) => setWeight(event.target.value)} placeholder="kg" /><input type="number" min="0" value={reps} onChange={(event) => setReps(event.target.value)} placeholder="reps" /><button className="button primary" onClick={() => { const kg = Number(weight); const count = Number(reps); if (Number.isNaN(kg) || Number.isNaN(count)) return; setWeight(""); setReps(""); void onAddSet(exercise, kg, count); }}><Plus size={15} />Serie</button></div></article>;
 }
 
-function RoutinesView({ exercises, routines, selected, onSelect, onCreate, onUpdate, onDelete, onReload, onStart, ask, notify }: {
-  exercises: Exercise[]; routines: Routine[]; selected: Routine | null; onSelect: (id: number) => void;
+function RoutinesView({ exercises, routines, selected, onSelect, onCreate, onUpdate, onDelete, onCreateExercise, onDeleteExercise, onReload, onStart, ask, notify }: {
+  exercises: Exercise[]; routines: Routine[]; selected: Routine | null; onSelect: (id: number | null) => void;
   onCreate: (name: string, description: string) => Promise<void>; onUpdate: (id: number, name: string, description: string) => Promise<void>;
-  onDelete: (id: number) => Promise<void>; onReload: () => Promise<void>; onStart: (data: { routine_id?: number }) => Promise<void>;
+  onDelete: (id: number) => Promise<void>; onCreateExercise: (name: string, muscle: string) => Promise<void>; onDeleteExercise: (id: number) => Promise<void>; onReload: () => Promise<void>; onStart: (data: { routine_id?: number }) => Promise<void>;
   ask: (title: string, detail: string, action: () => Promise<void>) => void; notify: (text: string, kind?: ToastKind) => void;
 }) {
   const [modalState, setModalState] = useState<{ mode: "create" } | { mode: "edit"; routine: Routine } | null>(null);
+  const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const [exerciseId, setExerciseId] = useState(""); const [sets, setSets] = useState("3"); const [reps, setReps] = useState("10"); const [weight, setWeight] = useState("0"); const [query, setQuery] = useState("");
   const [editingTarget, setEditingTarget] = useState<{ id: number; sets: string; reps: string; weight: string } | null>(null);
 
@@ -724,9 +725,10 @@ function RoutinesView({ exercises, routines, selected, onSelect, onCreate, onUpd
   return <PageTitle eyebrow="MÓDULO DE PLANIFICACIÓN" title="Gestión de rutinas y ejercicios" description="Define plantillas reutilizables para tus sesiones de fuerza." actions={<button className="button primary" onClick={() => setModalState({ mode: "create" })}><Plus size={16} />Nueva rutina</button>}>
     {modalState?.mode === "create" && <RoutineForm title="Nueva rutina" submitLabel="Crear rutina" onClose={() => setModalState(null)} onSubmit={async (name, description) => { await onCreate(name, description); setModalState(null); }} />}
     {modalState?.mode === "edit" && <RoutineForm title="Modificar rutina" submitLabel="Guardar cambios" initialName={modalState.routine.name} initialDescription={modalState.routine.description} onClose={() => setModalState(null)} onSubmit={async (name, description) => { await onUpdate(modalState.routine.id, name, description); setModalState(null); }} />}
+    {exerciseModalOpen && <ExerciseCreateDialog onClose={() => setExerciseModalOpen(false)} onSubmit={async (name, muscle) => { await onCreateExercise(name, muscle); setExerciseModalOpen(false); }} notify={notify} />}
 
-    <section><div className="list-label">RUTINAS ACTIVAS</div><div className="routine-grid">{routines.map((routine) => <div className={selected?.id === routine.id ? "routine-tile selected" : "routine-tile"} onClick={() => onSelect(routine.id)} key={routine.id} role="button" tabIndex={0}><div className="routine-tile-top"><span className="mono">{routine.exercises.length} MOVS</span><div className="routine-tile-actions" onClick={(e) => e.stopPropagation()}><button className="icon-button-sm" title="Modificar rutina" aria-label={`Modificar ${routine.name}`} onClick={() => { onSelect(routine.id); setModalState({ mode: "edit", routine }); }}><Pencil size={13} /></button><button className="icon-button-sm danger" title="Eliminar rutina" aria-label={`Eliminar ${routine.name}`} onClick={() => confirmDeleteRoutine(routine)}><Trash2 size={13} /></button></div></div><h3>{routine.name}</h3><p>{routine.description || "Sin descripción"}</p><b>{routine.exercises.reduce((total, exercise) => total + exercise.target_sets, 0)} series objetivo</b></div>)}{!routines.length && <div className="empty-state">Crea tu primera rutina para empezar.</div>}</div></section>
-    {selected && <div className="routine-layout"><section className="panel routine-detail"><div className="section-heading"><div><span className="eyebrow">RUTINA SELECCIONADA</span><h2>{selected.name}</h2><p>{selected.description || "Sin notas de preparación."}</p></div><div className="action-cluster"><button className="button primary" onClick={() => void onStart({ routine_id: selected.id })}><Dumbbell size={16} />Entrenar</button><button className="button secondary" onClick={() => setModalState({ mode: "edit", routine: selected })}><Pencil size={15} />Modificar</button><button className="button danger-button" aria-label="Eliminar rutina" onClick={() => confirmDeleteRoutine(selected)}><Trash2 size={15} />Eliminar</button></div></div><div className="routine-summary"><Metric label="EJERCICIOS" value={String(selected.exercises.length)} /><Metric label="TOTAL SERIES" value={String(selected.exercises.reduce((total, exercise) => total + exercise.target_sets, 0))} /><Metric label="CARGA OBJETIVO" value={`${formatKg(selected.exercises.reduce((total, exercise) => total + exercise.target_sets * exercise.target_reps * exercise.target_weight, 0))} kg`} /></div>
+    <section><div className="list-label">RUTINAS ACTIVAS</div><div className="routine-grid">{routines.map((routine) => <div className={selected?.id === routine.id ? "routine-tile selected" : "routine-tile"} onClick={() => onSelect(selected?.id === routine.id ? null : routine.id)} key={routine.id} role="button" tabIndex={0}><div className="routine-tile-top"><span className="mono">{routine.exercises.length} MOVS</span><div className="routine-tile-actions" onClick={(e) => e.stopPropagation()}><button className="icon-button-sm" title="Modificar rutina" aria-label={`Modificar ${routine.name}`} onClick={() => { onSelect(routine.id); setModalState({ mode: "edit", routine }); }}><Pencil size={13} /></button><button className="icon-button-sm danger" title="Eliminar rutina" aria-label={`Eliminar ${routine.name}`} onClick={() => confirmDeleteRoutine(routine)}><Trash2 size={13} /></button></div></div><h3>{routine.name}</h3><p>{routine.description || "Sin descripción"}</p><b>{routine.exercises.reduce((total, exercise) => total + exercise.target_sets, 0)} series objetivo</b></div>)}{!routines.length && <div className="empty-state">Crea tu primera rutina para empezar.</div>}</div></section>
+    <div className={selected ? "routine-layout" : "routine-layout routine-layout-library-only"}>{selected && <section className="panel routine-detail"><div className="section-heading"><div><span className="eyebrow">RUTINA SELECCIONADA</span><h2>{selected.name}</h2><p>{selected.description || "Sin notas de preparación."}</p></div><div className="action-cluster"><button className="button primary" onClick={() => void onStart({ routine_id: selected.id })}><Dumbbell size={16} />Entrenar</button><button className="button secondary" onClick={() => setModalState({ mode: "edit", routine: selected })}><Pencil size={15} />Modificar</button><button className="button danger-button" aria-label="Eliminar rutina" onClick={() => confirmDeleteRoutine(selected)}><Trash2 size={15} />Eliminar</button></div></div><div className="routine-summary"><Metric label="EJERCICIOS" value={String(selected.exercises.length)} /><Metric label="TOTAL SERIES" value={String(selected.exercises.reduce((total, exercise) => total + exercise.target_sets, 0))} /><Metric label="CARGA OBJETIVO" value={`${formatKg(selected.exercises.reduce((total, exercise) => total + exercise.target_sets * exercise.target_reps * exercise.target_weight, 0))} kg`} /></div>
       <div className="routine-exercises">{selected.exercises.map((exercise, index) => {
         const isEditing = editingTarget?.id === exercise.id;
         return <article className="planned-exercise" key={exercise.id}><div className="position">{index + 1}</div><div className="planned-main"><h3>{exercise.exercise_name}</h3><span>{exercise.muscle_group || "General"}</span></div>
@@ -744,8 +746,8 @@ function RoutinesView({ exercises, routines, selected, onSelect, onCreate, onUpd
           </>}
         </article>;
       })}</div>
-      <div className="add-routine-exercise"><label className="routine-field routine-exercise-picker"><span>Ejercicio</span><select value={exerciseId} onChange={(event) => setExerciseId(event.target.value)}><option value="">Selecciona un ejercicio</option>{exercises.map((exercise) => <option value={exercise.id} key={exercise.id}>{exercise.name}</option>)}</select></label><label className="routine-field"><span>Series</span><input type="number" min="1" value={sets} onChange={(event) => setSets(event.target.value)} aria-label="Series objetivo" /></label><label className="routine-field"><span>Repeticiones</span><input type="number" min="1" value={reps} onChange={(event) => setReps(event.target.value)} aria-label="Repeticiones objetivo" /></label><label className="routine-field"><span>Carga (kg)</span><input type="number" min="0" step=".5" value={weight} onChange={(event) => setWeight(event.target.value)} aria-label="Carga objetivo en kilogramos" /></label><button className="button secondary" onClick={() => void addExercise()}><CirclePlus size={16} />Añadir</button></div></section>
-      <aside className="panel exercise-library"><div className="section-heading"><div><h2>Biblioteca de ejercicios</h2><p>{exercises.length} disponibles</p></div></div><label className="search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ejercicio o músculo…" /></label><div className="library-list">{visibleExercises.map((exercise) => <button key={exercise.id} onClick={() => setExerciseId(String(exercise.id))} className={exerciseId === String(exercise.id) ? "library-item chosen" : "library-item"}><Dumbbell size={16} /><span><b>{exercise.name}</b><small>{exercise.muscle_group || "General"}</small></span><Plus size={16} /></button>)}</div></aside></div>}
+      <div className="add-routine-exercise"><label className="routine-field routine-exercise-picker"><span>Ejercicio</span><select value={exerciseId} onChange={(event) => setExerciseId(event.target.value)}><option value="">Selecciona un ejercicio</option>{exercises.map((exercise) => <option value={exercise.id} key={exercise.id}>{exercise.name}</option>)}</select></label><label className="routine-field"><span>Series</span><input type="number" min="1" value={sets} onChange={(event) => setSets(event.target.value)} aria-label="Series objetivo" /></label><label className="routine-field"><span>Repeticiones</span><input type="number" min="1" value={reps} onChange={(event) => setReps(event.target.value)} aria-label="Repeticiones objetivo" /></label><label className="routine-field"><span>Carga (kg)</span><input type="number" min="0" step=".5" value={weight} onChange={(event) => setWeight(event.target.value)} aria-label="Carga objetivo en kilogramos" /></label><button className="button secondary" onClick={() => void addExercise()}><CirclePlus size={16} />Añadir</button></div></section>}
+      <aside className="panel exercise-library"><div className="section-heading"><div><h2>Biblioteca de ejercicios</h2><p>{exercises.length} disponibles</p></div><button className="button primary library-create" onClick={() => setExerciseModalOpen(true)}><Plus size={14} />Nuevo ejercicio</button></div><label className="search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ejercicio o músculo…" /></label><div className="library-list">{visibleExercises.map((exercise) => <div key={exercise.id} className={exerciseId === String(exercise.id) ? "library-item chosen" : "library-item"}><button className="library-select" onClick={() => setExerciseId(String(exercise.id))}><Dumbbell size={16} /><span><b>{exercise.name}</b><small>{exercise.muscle_group || "General"}</small></span><Plus size={16} /></button><button className="library-delete" aria-label={`Eliminar ${exercise.name}`} title="Eliminar ejercicio" onClick={() => ask("¿Eliminar ejercicio?", `Se eliminará “${exercise.name}” del catálogo. Solo se permite si aún no se ha usado en una rutina o sesión.`, async () => onDeleteExercise(exercise.id))}><Trash2 size={14} /></button></div>)}</div></aside></div>
   </PageTitle>;
 }
 
